@@ -1,0 +1,191 @@
+/* DASHBOARD */
+.dashboard {
+  direction: rtl;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e9fbe9, #c8f2cc);
+  font-family: 'Tajawal', sans-serif;
+}
+
+/* CONTAINER */
+.dashboard-container {
+  padding: 60px;
+}
+
+/* TITLE */
+.dashboard-title {
+  text-align: center;
+  font-size: 38px;
+  font-family: 'Almarai', sans-serif;
+  color: #1e9e57;
+  margin-bottom: 40px;
+}
+
+/* CARDS */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
+}
+
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 18px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+}
+
+.card h3 {
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.card p {
+  color: #666;
+  font-size: 15px;
+}
+
+/* ICON COLORS */
+.icon {
+  margin-bottom: 10px;
+}
+
+.green { color: #22c55e; }
+.blue { color: #3b82f6; }
+.orange { color: #f97316; }
+.purple { color: #8b5cf6; }
+
+/* STATS */
+.stats {
+  margin-top: 50px;
+  display: flex;
+  gap: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  width: 220px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+.stat-card h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.stat-card p {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1e9e57;
+}
+
+/* ========================= */
+/* ✅ LAYOUT + SIDEBAR FIX */
+/* ========================= */
+
+.layout {
+  display: flex;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 220px;
+  background: #1e293b;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  transition: width 0.3s ease;
+}
+
+/* عند الإغلاق */
+.sidebar.closed {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* LINKS */
+.sidebar .nav-link {
+  color: white;
+  margin: 10px 0;
+  display: block;
+  text-decoration: none;
+}
+
+.sidebar .nav-link:hover {
+  color: #22c55e;
+}
+
+/* MAIN CONTENT */
+.main {
+  flex: 1;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+/* زر toggle */
+.toggle-btn {
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: none;
+  background: #1e9e57;
+  color: white;
+  border-radius: 6px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 30px;
+  }
+}
+.general-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+/* نفس card dashboard */
+.card input,
+.card select {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+/* full width */
+.card.full {
+  grid-column: 1 / -1;
+}
+
+/* TAGS */
+.tags {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  background: #22c55e;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}

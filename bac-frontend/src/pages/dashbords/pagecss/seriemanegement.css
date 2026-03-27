@@ -1,0 +1,70 @@
+/* pagecss/seriemanegement.css */
+* {
+  font-family: 'Tajawal', 'Cairo', 'Segoe UI', 'Roboto', sans-serif;
+}
+.container {
+  display: flex;
+  background: linear-gradient(135deg, #e9fbe9, #c8f2cc);
+  flex-direction: column; /* très important pour empiler verticalement */
+  gap: 20px;
+}
+.titre {
+  display:flex; justify-content:space-between;gap:300px;  align-items:center; background:#fff; padding:12px 20px; border-radius:8px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.series-container {
+  width: 100%;
+}
+.loading { text-align:center; margin-top:50px; font-size:20px; }
+.titre .btn_secondary {
+  margin-right: auto;
+  align-items: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 25px;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.titre .btn_secondary:hover {
+  background: #1e9e57;
+  border-color: #1e9e57;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+/* HEADER + ACTIONS */
+.header-actions { display:flex; justify-content:space-between; align-items:center; background:#fff; padding:12px 20px; border-radius:8px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.header-left h1 { margin:0; font-size:26px; font-weight:bold; }
+.header-left p { margin:2px 0 0 0; color:#555; }
+.header-buttons { display:flex; gap:12px; }
+.header-buttons .btn { padding:8px 14px; display:flex; align-items:center; gap:4px; border-radius:6px; font-weight:bold; cursor:pointer; }
+.btn.primary { background:#3498db; color:white; }
+.btn.success { background:#2ecc71; color:white; }
+.btn.info { background:#f1c40f; color:white; }
+.btn input{display:none;}
+
+/* TOAST */
+.message-center { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); padding:16px 28px; border-radius:8px; font-weight:bold; text-align:center; z-index:1000; }
+.message-center.success { background-color:#2ecc71; color:white; }
+.message-center.error { background-color:#e74c3c; color:white; }
+
+/* FORM AJOUT */
+.form { display:flex; gap:8px; margin-bottom:20px; justify-content:center; }
+.form input, .form select { padding:6px 10px; border-radius:4px; border:1px solid #ccc; }
+
+/* SERIES GRID */
+.series-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-bottom:40px; }
+.card { background:#bdc3c7; border-radius:8px; padding:12px; display:flex; flex-direction:column; }
+.card.added { background:#3498db; color:white; }
+.card.imported { background:#2ecc71; color:white; }
+.card.existing { background:#bdc3c7; color:#000; }
+.card h3 { margin:0 0 8px 0; text-align:center; }
+.inscriptions-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:8px; }
+.inscriptions-grid input { padding:4px; border-radius:4px; border:1px solid #aaa; text-align:center; }
+
+/* CARD BUTTONS */
+.card-buttons { display:flex; justify-content:space-between; }
+.card-buttons button { flex:1; margin:2px; }
+
+/* CONFIRM IMPORT */
+.confirm-container { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#2980b9; color:white; padding:20px 30px; border-radius:10px; font-size:18px; display:flex; flex-direction:column; align-items:center; z-index:1001; }
+.confirm-container button { margin-top:12px; padding:6px 14px; background:#27ae60; border:none; border-radius:6px; color:white; font-weight:bold; cursor:pointer; }
