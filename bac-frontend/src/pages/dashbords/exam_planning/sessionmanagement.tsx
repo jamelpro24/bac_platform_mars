@@ -82,7 +82,10 @@ export default function SessionsManagement() {
     setSuccess("");
   };
 
-  const openAddForm = () => resetForm() || setShowForm(true);
+  const openAddForm = () => {
+    resetForm();
+    setShowForm(true);
+  };
 
   const openEditForm = (session: Session) => {
     setEditingSession(session);

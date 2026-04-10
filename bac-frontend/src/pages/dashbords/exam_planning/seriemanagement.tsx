@@ -47,7 +47,7 @@ export default function SerieManagement() {
     try {
       const [seriesRes, infoRes] = await Promise.all([
         API.get("series/"),
-        API.get("general-info/"),
+        API.get("general/"),
       ]);
       setSeries(seriesRes.data.map((s: Serie) => ({ ...s, type: "existing" })));
       setSections(infoRes.data.sections || []);

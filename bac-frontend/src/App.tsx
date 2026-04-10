@@ -19,7 +19,7 @@ import DirecteurDashboard from "./pages/dashbords/DirecteurDashbord";
 import SessionManagement from "./pages/dashbords/exam_planning/sessionmanagement";
 import SerieManagement from "./pages/dashbords/exam_planning/seriemanagement";
 import ExamCalendar from "./pages/dashbords/exam_planning/calendar";
-
+import MatieresPage from "./pages/dashbords/exam_planning/MatieresPage";
 
 // ...
 
@@ -52,6 +52,7 @@ function App() {
           <Route path="surveillance" element={<Surveillance />} />
           <Route path="calendrier/sessionmanagement" element={<SessionManagement />} />
           <Route path="calendrier/seriemanagement" element={<SerieManagement />} />
+          <Route path="calendrier/matieres" element={<MatieresPage />} />
         </Route>
 
         {/* ADMIN */}
