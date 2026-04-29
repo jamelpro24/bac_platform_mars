@@ -1,0 +1,432 @@
+/* ========================= */
+/* RESET                     */
+/* ========================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Tajawal', 'Almarai', sans-serif;
+}
+
+/* GENERAL PAGE - identique au dashboard */
+.general {
+  direction: rtl;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e9fbe9, #c8f2cc);
+  padding-top: 1cm;
+}
+
+/* CONTAINER - pas de max-width ni margin auto */
+.dashboard-container {
+  padding: 40px 60px;
+}
+
+/* TITLE */
+.dashboard-title {
+  text-align: center;
+  font-size: 38px;
+  font-family: 'Almarai', sans-serif;
+  color: #1e9e57;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.dashboard-title::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #22c55e, #15803d);
+  margin: 10px auto 0;
+  border-radius: 2px;
+}
+
+/* GRID */
+.general-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+/* CARD - même style que dashboard */
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+}
+
+.card.full {
+  grid-column: 1 / -1;
+}
+
+/* Card title */
+.card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #1e293b;
+  border-right: 4px solid #22c55e;
+  padding-right: 12px;
+  display: inline-block;
+}
+
+.card-hint {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 15px;
+}
+
+/* INPUTS */
+.card input,
+.card select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Tajawal', sans-serif;
+}
+
+.card input:focus,
+.card select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.card input[readonly] {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* SECTIONS TOGGLE */
+.sections-toggle-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.section-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 30px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-family: 'Tajawal', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.section-toggle-btn:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.section-toggle-btn.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+  font-weight: 600;
+}
+
+.section-icon {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* SAVE SECTION */
+.save-section {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  color: white;
+  padding: 12px 40px;
+  border: none;
+  border-radius: 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+  font-family: 'Tajawal', sans-serif;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.save-btn:disabled {
+  background: #94a3b8;
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* MESSAGES */
+.error-msg {
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.success-msg {
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 20px;
+  }
+
+  .dashboard-title {
+    font-size: 28px;
+  }
+}```css
+/* ========================= */
+/* RESET                     */
+/* ========================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Tajawal', 'Almarai', sans-serif;
+}
+
+/* GENERAL PAGE - identique au dashboard */
+.general {
+  direction: rtl;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e9fbe9, #c8f2cc);
+  padding-top: 1cm;
+}
+
+/* CONTAINER - pas de max-width ni margin auto */
+.dashboard-container {
+  padding: 40px 60px;
+}
+
+/* TITLE */
+.dashboard-title {
+  text-align: center;
+  font-size: 38px;
+  font-family: 'Almarai', sans-serif;
+  color: #1e9e57;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.dashboard-title::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #22c55e, #15803d);
+  margin: 10px auto 0;
+  border-radius: 2px;
+}
+
+/* GRID */
+.general-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+/* CARD - même style que dashboard */
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+}
+
+.card.full {
+  grid-column: 1 / -1;
+}
+
+/* Card title */
+.card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #1e293b;
+  border-right: 4px solid #22c55e;
+  padding-right: 12px;
+  display: inline-block;
+}
+
+.card-hint {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 15px;
+}
+
+/* INPUTS */
+.card input,
+.card select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Tajawal', sans-serif;
+}
+
+.card input:focus,
+.card select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.card input[readonly] {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* SECTIONS TOGGLE */
+.sections-toggle-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.section-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 30px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-family: 'Tajawal', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.section-toggle-btn:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.section-toggle-btn.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+  font-weight: 600;
+}
+
+.section-icon {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* SAVE SECTION */
+.save-section {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  color: white;
+  padding: 12px 40px;
+  border: none;
+  border-radius: 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+  font-family: 'Tajawal', sans-serif;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.save-btn:disabled {
+  background: #94a3b8;
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* MESSAGES */
+.error-msg {
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.success-msg {
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 20px;
+  }
+
+  .dashboard-title {
+    font-size: 28px;
+  }
+}

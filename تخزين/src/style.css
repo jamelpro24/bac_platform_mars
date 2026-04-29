@@ -1,0 +1,92 @@
+body{
+background: linear-gradient(135deg,#f3e8ff,#e9d5ff);
+font-family: 'Tajawal bold', sans-serif;
+}
+
+
+h1, h2, h3, .header-title {
+  font-family: 'Almarai', sans-serif; /* pour les titres */
+}
+/* SIDEBAR */
+
+.sidebar{
+position: fixed;
+top:0;
+right:-200px;
+width:220px;
+height:100vh;
+background: linear-gradient(180deg,#3aeaed,#c084fc);
+color:white;
+padding:20px;
+transition:0.4s;
+border-radius:20px 0 0 20px;
+box-shadow:0 0 20px rgba(0,0,0,0.2);
+}
+
+/* SIDEBAR SHOW */
+
+.sidebar:hover{
+right:0;
+}
+
+/* MENU */
+
+.sidebar .nav-link{
+color:white;
+font-size:18px;
+margin-bottom:12px;
+border-radius:12px;
+transition:0.3s;
+}
+
+.sidebar .nav-link:hover{
+background:rgba(255,255,255,0.2);
+padding-right:10px;
+}
+
+/* HEADER */
+
+.header{
+margin-right:40px;
+margin-left:40px;
+margin-top:20px;
+border-radius:20px;
+background:white;
+padding:15px 30px;
+box-shadow:0 4px 15px rgba(0,0,0,0.1);
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+/* DASHBOARD CARDS */
+
+.dashboard-card{
+border:none;
+border-radius:20px;
+padding:30px;
+text-align:center;
+transition:0.3s;
+cursor:pointer;
+background:white;
+}
+
+.dashboard-card:hover{
+transform:translateY(-8px);
+box-shadow:0 12px 25px rgba(0,0,0,0.15);
+}
+
+/* ICON ANIMATION */
+
+.icon-animated{
+font-size:45px;
+animation:float 2s infinite ease-in-out;
+}
+
+@keyframes float{
+
+0%{transform:translateY(0)}
+50%{transform:translateY(-8px)}
+100%{transform:translateY(0)}
+
+}

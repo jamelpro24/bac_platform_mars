@@ -1,0 +1,68 @@
+.profs-page .profs-section-card,
+.profs-page .profs-form-card {
+  border: 1px solid rgba(34, 94, 52, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(28, 74, 45, 0.08);
+}
+
+.profs-page .profs-intro h5 {
+  color: #1d5f3b;
+  font-weight: 700;
+}
+
+.profs-page .profs-upload-button,
+.profs-page .profs-primary-btn {
+  background: linear-gradient(135deg, #2f8f5b, #246f46);
+  border: none;
+  color: #fff;
+}
+
+.profs-page .profs-upload-button:hover,
+.profs-page .profs-primary-btn:hover {
+  background: linear-gradient(135deg, #2a8051, #1f623d);
+  color: #fff;
+}
+
+.profs-page .profs-outline-btn {
+  border-color: #2f8f5b;
+  color: #2f8f5b;
+}
+
+.profs-page .profs-outline-btn:hover {
+  background: #2f8f5b;
+  border-color: #2f8f5b;
+  color: #fff;
+}
+
+.profs-page .profs-filename {
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+.profs-page .profs-table-wrap {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.profs-page .profs-preview-table thead th,
+.profs-page .profs-table thead th {
+  background: #f2f8f4;
+  color: #215739;
+  font-weight: 700;
+}
+
+.profs-page .profs-table tbody tr:hover {
+  background: rgba(47, 143, 91, 0.05);
+}
+
+.profs-page .profs-empty {
+  padding: 24px 12px;
+}
+
+@media (max-width: 768px) {
+  .profs-page .profs-upload-button,
+  .profs-page .profs-primary-btn,
+  .profs-page .profs-outline-btn {
+    width: 100%;
+  }
+}
