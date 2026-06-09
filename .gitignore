@@ -1,24 +1,14 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-.env
-
-# Django
-media/
-staticfiles/
+*.py[cod]
+*.egg-info/
+dist/
 
 # Node
 node_modules/
-dist/
-build/
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Env
+.env
 
 # IDE
 .vscode/
@@ -26,6 +16,21 @@ yarn-error.log*
 
 # OS
 .DS_Store
+Thumbs.db
 
-# backend nested git (مهم)
-bac_backend/.git/
+# Generated docx (but NOT templates in modeles/)
+*.docx
+!bac_backend/exam_planning/modeles/*.docx
+
+# Other generated
+*.pdf
+*.png
+*.zip
+/excel/
+/numero/
+/scripts/
+*.xlsx
+~$*.xlsx
+
+# Temp test files
+test_*

@@ -15,13 +15,22 @@ import Candidats from "./pages/candidats";
 import Exams from "./pages/dashbords/Exams";
 import Surveillance from "./pages/Surveillance";
 import DirecteurDashboard from "./pages/dashbords/DirecteurDashbord";
+import ProfsDashboard from "./pages/dashbords/ProfsDashboard";
+import SurveillanceProfs from "./pages/dashbords/surveillanceprofs";
+import ProfSurveillanceBalance from "./pages/dashbords/ProfSurveillanceBalance";
+import ProfInvitations from "./pages/dashbords/ProfInvitations";
+import ProfCalendrier from "./pages/dashbords/ProfCalendrier";
 
 import SessionManagement from "./pages/dashbords/exam_planning/sessionmanagement";
 import SerieManagement from "./pages/dashbords/exam_planning/seriemanagement";
 import ExamCalendar from "./pages/dashbords/exam_planning/calendar";
 import MatieresPage from "./pages/dashbords/exam_planning/MatieresPage";
 
-// ...
+// Nouvelles pages
+import Badges from "./pages/padge";
+import MatieresOptionnelles from "./pages/dashbords/exam_planning/SallesOptionnelles";
+import Edition from "./pages/dashbords/Edition";
+import Rapports from "./pages/dashbords/Rapports";
 
 
 function App() {
@@ -42,19 +51,29 @@ function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={< DirecteurDashboard/>} />
+          <Route index element={<DirecteurDashboard/>} />
           <Route path="general" element={<General />} />
           <Route path="calendrier" element={<ExamCalendar />} />
           <Route path="salles" element={<Salles />} />
-          <Route path="profs" element={<Profs />} />
+          <Route path="profs" element={<ProfsDashboard />} />
+          <Route path="profs/liste" element={<Profs />} />
+          <Route path="profs/surveillance" element={<SurveillanceProfs />} />
+          <Route path="profs/surveillance/equilibre" element={<ProfSurveillanceBalance />} />
+          <Route path="profs/invitations" element={<ProfInvitations />} />
+          <Route path="profs/calendrier" element={<ProfCalendrier />} />
+          <Route path="profs" element={<ProfsDashboard />} />
+          <Route path="profs/liste" element={<Profs />} />
           <Route path="candidats" element={<Candidats />} />
           <Route path="examens" element={<Exams />} />
           <Route path="surveillance" element={<Surveillance />} />
           <Route path="calendrier/sessionmanagement" element={<SessionManagement />} />
           <Route path="calendrier/seriemanagement" element={<SerieManagement />} />
           <Route path="calendrier/matieres" element={<MatieresPage />} />
+          <Route path="badges" element={<Badges />} />
+          <Route path="matieres-optionnelles" element={<MatieresOptionnelles />} />
+          <Route path="edition" element={<Edition />} />
+          <Route path="rapports" element={<Rapports />} />
         </Route>
-
         {/* ADMIN */}
         <Route
           path="/dashboardadmin"
@@ -65,9 +84,15 @@ function App() {
           }
         >
           <Route index element={<AdminDashboard />} />
-          <Route path="centres" element={<Centres />} />
+          <Route path="general" element={<General />} />
+          <Route path="calendrier" element={<ExamCalendar />} />
           <Route path="salles" element={<Salles />} />
-          <Route path="profs" element={<Profs />} />
+          <Route path="profs" element={<ProfsDashboard />} />
+          <Route path="profs/liste" element={<Profs />} />
+          <Route path="profs/surveillance" element={<SurveillanceProfs />} />
+          <Route path="profs/surveillance/equilibre" element={<ProfSurveillanceBalance />} />
+          <Route path="profs/invitations" element={<ProfInvitations />} />
+          <Route path="profs/calendrier" element={<ProfCalendrier />} />
           <Route path="candidats" element={<Candidats />} />
           <Route path="examens" element={<Exams />} />
           <Route path="surveillance" element={<Surveillance />} />
