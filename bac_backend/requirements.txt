@@ -10,3 +10,4 @@ Pillow>=10.0
 PyMuPDF>=1.23
 dj-database-url>=2.1
 whitenoise>=6.6
+pandas>=2.2
