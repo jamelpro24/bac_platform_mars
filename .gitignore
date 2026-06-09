@@ -34,3 +34,6 @@ Thumbs.db
 
 # Temp test files
 test_*
+
+# Data export (too large for git)
+data_export.json
