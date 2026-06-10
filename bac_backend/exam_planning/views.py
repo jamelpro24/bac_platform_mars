@@ -890,29 +890,28 @@ class SerieListView(ListAPIView):
         return queryset
 
 # ==================== IMPORT DATA ====================
-import urllib.request, os
+import urllib.request, os, tempfile, traceback
 from django.core.management import call_command
+from django.http import JsonResponse
 
 @api_view(['GET'])
 @permission_classes([])
 def import_data(request):
-    results = []
     try:
         url = "https://tmpfiles.org/dl/wZwJcBX80mDg/data_export.json"
-        path = "/tmp/data_export.json"
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = f.name
         urllib.request.urlretrieve(url, path)
         size = os.path.getsize(path)
-        results.append(f"downloaded: {size} bytes")
-        if size > 0:
-            try:
-                call_command("loaddata", path, verbosity=1)
-                results.append("loaddata succeeded")
-            except Exception as e:
-                results.append(f"loaddata error: {e}")
-            os.remove(path)
+        if size == 0:
+            return JsonResponse({"error": "empty file"}, status=500)
+        from io import StringIO
+        out = StringIO()
+        call_command("loaddata", path, stdout=out, stderr=out)
+        os.unlink(path)
+        return JsonResponse({"result": out.getvalue()[:1000]})
     except Exception as e:
-        results.append(f"error: {e}")
-    return Response({"results": results})
+        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
 
 
 
