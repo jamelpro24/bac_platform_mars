@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Building, School, BookOpen, FileText } from "lucide-react";
 import Header from "../../../components/Header";
 import "../pagecss/dashbord.css";
 import "../pagecss/matieres.css";
@@ -157,7 +157,7 @@ export default function MatieresPage() {
             </p>
           </div>
 
-          <div className="matieres-page-actions">
+<div className="matieres-page-actions">
             <button className="matieres-action matieres-action-back" onClick={() => navigate(-1)}>
               <ArrowLeft size={18} />
               <span>رجوع</span>
@@ -169,6 +169,14 @@ export default function MatieresPage() {
             <button className="matieres-action matieres-action-series" onClick={() => navigate("/dashboarddirecteur/calendrier/seriemanagement")}>
               <Users size={18} />
               <span>إدارة السلاسل</span>
+            </button>
+            <button className="matieres-action" onClick={() => navigate("/dashboarddirecteur/general")}>
+              <Building size={18} />
+              <span>المعطيات العامة</span>
+            </button>
+            <button className="matieres-action" onClick={() => navigate("/dashboarddirecteur")}>
+              <School size={18} />
+              <span>لوحة التحكم</span>
             </button>
           </div>
         </div>

@@ -1,13 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Edit, Trash2, Calendar, Users, BookOpen } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Users, Save, Upload } from "lucide-react";
 import API from "../../../services/api";
 import Header from "../../../components/Header";
-import "../pagecss/dashbord.css";
 import "../pagecss/calendor.css";
 import { SECTIONS_FIXES } from "../general";
 
 type Jour = { date: string; label: string };
+
+function _sectionKey(n: string): string {
+  const words = n.trim().split(/\s+/).map(w => {
+    while (true) {
+      if (w.startsWith("ال") && w.length > 2) { w = w.slice(2); continue; }
+      if (w.startsWith("و")) { w = w.slice(1); continue; }
+      break;
+    }
+    return w;
+  }).filter(Boolean);
+  return [...new Set(words)].sort().join(" ");
+}
 
 type Session = {
   id: number;
@@ -16,7 +27,8 @@ type Session = {
 };
 
 type Section = { id: number; nom: string };
-type Matiere = { id: number; nom: string; heures: number };
+type Matiere = { id: number; nom: string };
+type MatiereSectionInfo = { id: number; matiere: number; section: number; heures: number; matiere_nom: string; type: string; section_nom: string };
 type Examen = {
   id: number;
   session: number;
@@ -30,9 +42,11 @@ type Examen = {
 export default function ExamCalendar() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [sectionKeyMap, setSectionKeyMap] = useState<Map<string, number[]>>(new Map());
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [matieres, setMatieres] = useState<Matiere[]>([]);
+  const [matiereSections, setMatiereSections] = useState<MatiereSectionInfo[]>([]);
   const [examens, setExamens] = useState<Examen[]>([]);
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -51,22 +65,42 @@ export default function ExamCalendar() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sessionsRes, infoRes, matieresRes, examensRes] = await Promise.all([
+        const [sessionsRes, infoRes, matieresRes, msRes, examensRes] = await Promise.all([
           API.get("sessions/"),
           API.get("general/"),
           API.get("matieres/"),
+          API.get("matieres-sections/"),
           API.get("examens/"),
         ]);
 
         setSessions(sessionsRes.data);
 
         const rawSections: Section[] = infoRes.data.sections || [];
-        const sorted = [...rawSections].sort(
-          (a, b) => SECTIONS_FIXES.indexOf(a.nom) - SECTIONS_FIXES.indexOf(b.nom)
-        );
-        setSections(sorted);
+        const grouped = new Map<string, Section[]>();
+        for (const s of rawSections) {
+          const key = _sectionKey(s.nom);
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key)!.push(s);
+        }
+        // Pick best section per group (prefer SECTIONS_FIXES, else first by id)
+        const bestSections: Section[] = [];
+        const keyMap = new Map<string, number[]>();
+        for (const [key, group] of grouped) {
+          let best = group[0];
+          for (const s of group) {
+            const bestIdx = SECTIONS_FIXES.indexOf(best.nom);
+            const curIdx = SECTIONS_FIXES.indexOf(s.nom);
+            if (curIdx >= 0 && (bestIdx < 0 || curIdx < bestIdx)) best = s;
+          }
+          bestSections.push(best);
+          keyMap.set(key, group.map(g => g.id));
+        }
+        bestSections.sort((a, b) => SECTIONS_FIXES.indexOf(a.nom) - SECTIONS_FIXES.indexOf(b.nom));
+        setSections(bestSections);
+        setSectionKeyMap(keyMap);
 
         setMatieres(matieresRes.data);
+        setMatiereSections(msRes.data);
         setExamens(examensRes.data);
 
         if (sessionsRes.data.length > 0) setSelectedSession(sessionsRes.data[0].id);
@@ -82,8 +116,13 @@ export default function ExamCalendar() {
 
   const filteredExamens = examens.filter((ex) => ex.session === selectedSession);
 
-  const getExamsForCell = (date: string, sectionId: number): Examen[] =>
-    filteredExamens.filter((ex) => ex.date === date && ex.section === sectionId);
+  const getExamsForCell = (date: string, sectionId: number): Examen[] => {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return [];
+    const key = _sectionKey(sec.nom);
+    const groupIds = sectionKeyMap.get(key) || [sectionId];
+    return filteredExamens.filter((ex) => ex.date === date && groupIds.includes(ex.section));
+  };
 
   const getDaysInSession = (): Jour[] => {
     if (!selectedSession) return [];
@@ -94,12 +133,19 @@ export default function ExamCalendar() {
 
   const handleCellClick = (date: string, sectionId: number) => {
     setEditingExamen(null);
+    const sectionMats = getMatieresForSection(sectionId);
+    const firstMat = sectionMats.length > 0 ? sectionMats[0] : null;
+    const heureDebut = "08:00";
+    let heureFin = "09:00";
+    if (firstMat) {
+      heureFin = calcHeureFin(heureDebut, firstMat.heures);
+    }
     setFormData({
       session: selectedSession?.toString() || "",
       date,
-      heure_debut: "08:00",
-      heure_fin: "10:00",
-      matiere: "",
+      heure_debut: heureDebut,
+      heure_fin: heureFin,
+      matiere: firstMat ? firstMat.matiere.toString() : "",
       section: sectionId.toString(),
     });
     setShowModal(true);
@@ -150,47 +196,134 @@ export default function ExamCalendar() {
     }
   };
 
-  const getMatiereNom = (id: number) =>
-    matieres.find((m) => m.id === id)?.nom || "?";
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState("");
 
-  const getSectionNom = (id: number) =>
-    sections.find((s) => s.id === id)?.nom || "?";
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true); setImportResult(""); setError(""); setSuccess("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (selectedSession) form.append("session_id", String(selectedSession));
+      const res = await API.post("import-examens/", form);
+      const data = res.data;
+      const parts = [];
+      if (data.created_matieres) parts.push(`${data.created_matieres} مادة`);
+      if (data.created_durees) parts.push(`${data.created_durees} مدة`);
+      if (data.created_examens) parts.push(`${data.created_examens} امتحان`);
+      setImportResult(`✓ ${parts.join("، ") || "لا جديد"}` + (data.total_errors ? ` | ${data.total_errors} خطأ` : ""));
+      if (data.errors?.length) setError(data.errors.slice(0, 3).join(" | "));
+      const [examensRes, matieresRes, msRes] = await Promise.all([
+        API.get("examens/"),
+        API.get("matieres/"),
+        API.get("matieres-sections/"),
+      ]);
+      setExamens(examensRes.data);
+      setMatieres(matieresRes.data);
+      setMatiereSections(msRes.data);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "خطأ في الاستيراد");
+    }
+    setImporting(false);
+    e.target.value = "";
+  };
+
+  const handleSaveTemplate = async () => {
+    setError("");
+    setSuccess("");
+    try {
+      await API.post("template-examens/");
+      setSuccess("تم حفظ جدول الامتحانات كقالب");
+    } catch {
+      setError("فشل حفظ القالب");
+    }
+  };
+
+  const handleRestoreTemplate = async () => {
+    if (!window.confirm("سيتم استبدال جدول الامتحانات الحالي بالقالب المحفوظ. هل أنت متأكد؟")) return;
+    setError("");
+    setSuccess("");
+    try {
+      const res = await API.post("template-examens/restore/");
+      const count = res.data.restored || 0;
+      setSuccess(`تم استيراد ${count} امتحان من القالب`);
+      const examensRes = await API.get("examens/");
+      setExamens(examensRes.data);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "فشل استيراد القالب");
+    }
+  };
+
+  const _groupIdsForSection = (sectionId: number): number[] => {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return [sectionId];
+    const key = _sectionKey(sec.nom);
+    return sectionKeyMap.get(key) || [sectionId];
+  };
+
+  const getMatieresForSection = (sectionId: number) => {
+    const groupIds = _groupIdsForSection(sectionId);
+    return matiereSections.filter((ms) => groupIds.includes(ms.section));
+  };
+
+  const getMatiereDuree = (matiereId: number, sectionId: number): number | null => {
+    const groupIds = _groupIdsForSection(sectionId);
+    const ms = matiereSections.find((m) => m.matiere === matiereId && groupIds.includes(m.section));
+    return ms ? ms.heures : null;
+  };
+
+  const calcHeureFin = (heureDebut: string, dureeHeures: number): string => {
+    const [h, m] = heureDebut.split(":").map(Number);
+    const totalMinutes = h * 60 + m + dureeHeures * 60;
+    const newH = Math.floor(totalMinutes / 60) % 24;
+    const newM = Math.round(totalMinutes % 60);
+    return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "matiere" && value && next.heure_debut) {
+        const duree = getMatiereDuree(Number(value), Number(next.section));
+        if (duree) next.heure_fin = calcHeureFin(next.heure_debut, duree);
+      }
+      if (field === "heure_debut" && value && next.matiere) {
+        const duree = getMatiereDuree(Number(next.matiere), Number(next.section));
+        if (duree) next.heure_fin = calcHeureFin(value, duree);
+      }
+      return next;
+    });
+  };
+
+  const getMatiereNom = (id: number) => {
+    const nom = matieres.find((m) => m.id === id)?.nom || "?";
+    return nom === "علوم تجريبية" ? "علوم التجريبية" : nom;
+  };
+
+  const getSectionNom = (id: number) => {
+    const found = sections.find((s) => s.id === id);
+    if (found) return found.nom;
+    // Check if id is in a dedup group
+    for (const ids of sectionKeyMap.values()) {
+      if (ids.includes(id)) {
+        const kept = sections.find(s => ids.includes(s.id));
+        return kept?.nom || "?";
+      }
+    }
+    return "?";
+  };
 
   if (loading) return <div className="loading">جاري التحميل...</div>;
 
   const jours = getDaysInSession();
 
   return (
-    <div className="dashboard exam-calendar-page" dir="rtl">
+    <div className="dashboard">
       <Header />
-      <div className="dashboard-container exam-calendar-container">
-        <div className="exam-calendar-header">
-          <h1 className="dashboard-title exam-calendar-title">جدولة الامتحانات</h1>
-
-          <div className="exam-calendar-actions">
-            <button className="exam-calendar-back" onClick={() => navigate("/dashboarddirecteur")}>
-              <ArrowLeft size={18} />
-              <span>الرئيسية</span>
-            </button>
-
-            <div className="exam-calendar-actions-group">
-              <button
-                className="exam-calendar-action exam-calendar-action-series"
-                onClick={() => navigate("/dashboarddirecteur/calendrier/seriemanagement")}
-              >
-                <Users size={18} />
-                <span>إدارة السلاسل</span>
-              </button>
-              <button
-                className="exam-calendar-action exam-calendar-action-matieres"
-                onClick={() => navigate("/dashboarddirecteur/calendrier/matieres")}
-              >
-                <BookOpen size={18} />
-                <span>إدارة المواد</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="dashboard-container">
+        <h1 className="dashboard-title">جدولة الامتحانات</h1>
 
       {/* Sélecteur de session */}
       <div className="top-cards">
@@ -224,6 +357,52 @@ export default function ExamCalendar() {
               ))
             )}
           </div>
+        </div>
+
+        {/* Boutons vers serie et matiere management */}
+        <div className="card">
+          <h3>إدارة السلاسل والمكونات</h3>
+          <div className="action-buttons">
+            <button
+              className="add-session-btn"
+              onClick={() => navigate("/dashboarddirecteur/calendrier/seriemanagement")}
+            >
+              <Plus size={16} /> إدارة السلاسل
+            </button>
+            <button
+              className="add-session-btn"
+              onClick={() => navigate("/dashboarddirecteur/calendrier/matieres")}
+            >
+              <Plus size={16} /> إدارة المواد
+            </button>
+          </div>
+        </div>
+
+        {/* Boutons template */}
+        <div className="card">
+          <h3>قالب الجدول</h3>
+          <div className="action-buttons">
+            <button className="add-session-btn" onClick={handleSaveTemplate}>
+              <Save size={16} /> حفظ القالب
+            </button>
+            <button className="add-session-btn" onClick={handleRestoreTemplate}>
+              <Upload size={16} /> استيراد القالب
+            </button>
+          </div>
+        </div>
+
+        {/* Import Excel */}
+        <div className="card">
+          <h3>استيراد جدول Excel</h3>
+          <p style={{fontSize:12,color:"#5f6368",margin:"4px 0 10px"}}>الأعمدة: type | duree | matiere | section | date | heure_debut | heure_fin</p>
+          <div className="action-buttons">
+            <input type="file" accept=".xlsx,.xls" style={{display:"none"}} id="excel-upload"
+              onChange={handleExcelUpload} />
+            <button className="add-session-btn" disabled={importing} onClick={() => document.getElementById('excel-upload')!.click()}>
+              <Upload size={16} /> {importing ? "جاري الاستيراد..." : "رفع Excel"}
+            </button>
+          </div>
+          {importResult && <p style={{fontSize:13,color:"#166534",marginTop:8}}>{importResult}</p>}
         </div>
       </div>
 
@@ -274,6 +453,7 @@ export default function ExamCalendar() {
                                 });
                                 setShowModal(true);
                               }}
+                              onMouseDown={(e) => e.stopPropagation()}
                             >
                               <Edit size={14} />
                             </button>
@@ -314,38 +494,6 @@ export default function ExamCalendar() {
               <input type="date" value={formData.date} readOnly />
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>من</label>
-                <input
-                  type="time"
-                  value={formData.heure_debut}
-                  onChange={(e) => setFormData({ ...formData, heure_debut: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>إلى</label>
-                <input
-                  type="time"
-                  value={formData.heure_fin}
-                  onChange={(e) => setFormData({ ...formData, heure_fin: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>المادة</label>
-              <select
-                value={formData.matiere}
-                onChange={(e) => setFormData({ ...formData, matiere: e.target.value })}
-              >
-                <option value="">-- اختر المادة --</option>
-                {matieres.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nom}</option>
-                ))}
-              </select>
-            </div>
-
             <div className="form-group">
               <label>الشعبة</label>
               <input
@@ -353,6 +501,40 @@ export default function ExamCalendar() {
                 value={getSectionNom(Number(formData.section))}
                 readOnly
               />
+            </div>
+
+            <div className="form-group">
+              <label>المادة</label>
+              <select
+                value={formData.matiere}
+                onChange={(e) => handleFieldChange("matiere", e.target.value)}
+              >
+                <option value="">-- اختر المادة --</option>
+                {getMatieresForSection(Number(formData.section)).map((ms) => (
+                  <option key={ms.matiere} value={ms.matiere}>
+                    {ms.matiere_nom} ({ms.heures}h)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>من</label>
+                <input
+                  type="time"
+                  value={formData.heure_debut}
+                  onChange={(e) => handleFieldChange("heure_debut", e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>إلى</label>
+                <input
+                  type="time"
+                  value={formData.heure_fin}
+                  onChange={(e) => handleFieldChange("heure_fin", e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="modal-actions">
@@ -373,7 +555,7 @@ export default function ExamCalendar() {
           </div>
         </div>
       )}
-      </div>
+    </div>
     </div>
   );
 }

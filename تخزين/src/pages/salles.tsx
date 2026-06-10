@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileText, Download, Printer, ChevronDown, ChevronUp, X, CheckCircle, Loader, Clock } from "lucide-react";
 import API from "../services/api";
-
+import "../pages/dashbords/pagecss/salles.css";
 
 type Matiere = { id: number; nom: string };
 type Section = { id: number; nom: string };
@@ -68,7 +68,7 @@ export default function DocumentsPage() {
           API.get("examens/"),
           API.get("matieres/"),
           API.get("general/"),
-          API.get("salles/"),
+          API.get("salles-exam/"),
           API.get("series/"),
         ]);
         setExamens(eR.data);

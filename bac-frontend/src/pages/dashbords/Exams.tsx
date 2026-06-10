@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../../services/api";
+import Header from "../../components/Header";
 
 interface Matiere {
   id: number;
@@ -19,7 +20,6 @@ export default function Exams() {
   const [editId, setEditId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Matiere form
   const [matiereForm, setMatiereForm] = useState({ nom: "" });
   const [showMatiereForm, setShowMatiereForm] = useState(false);
 
@@ -73,8 +73,10 @@ export default function Exams() {
   };
 
   return (
-    <div className="dashboard-container" dir="rtl">
-      <h2 className="dashboard-title">إدارة الامتحانات</h2>
+    <div className="dashboard">
+      <Header />
+      <div className="dashboard-container">
+        <h1 className="dashboard-title">إدارة الامتحانات</h1>
 
       <div className="d-flex gap-2 mb-3">
         <button
@@ -154,6 +156,7 @@ export default function Exams() {
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   );
 }

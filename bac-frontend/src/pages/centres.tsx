@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import Header from "../components/Header";
 import "../pages/dashbords/pagecss/dashbord.css";
+import "./acceuil/home.css";
 
 interface Centre {
   id: number;
@@ -51,71 +53,74 @@ export default function Centres() {
   };
 
   return (
-    <div className="dashboard-container" dir="rtl">
-      <h2 className="dashboard-title">إدارة المراكز</h2>
+    <div className="dashboard" style={{ padding: "1.5rem 6cm 1.5rem 1.5rem" }}>
+      <Header />
+      <div className="dashboard-container" dir="rtl">
+        <h2 className="dashboard-title">إدارة المراكز</h2>
 
-      <button
-        className="btn btn-success mb-3"
-        onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: "", adresse: "", ville: "", telephone: "" }); }}
-      >
-        {showForm ? "إلغاء" : "إضافة مركز جديد"}
-      </button>
+        <button
+          className="btn btn-success mb-3"
+          onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ nom: "", adresse: "", ville: "", telephone: "" }); }}
+        >
+          {showForm ? "إلغاء" : "إضافة مركز جديد"}
+        </button>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="card p-3 mb-4">
-          <div className="row g-3">
-            <div className="col-md-3">
-              <input className="form-control" placeholder="اسم المركز" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
+        {showForm && (
+          <form onSubmit={handleSubmit} className="card p-3 mb-4">
+            <div className="row g-3">
+              <div className="col-md-3">
+                <input className="form-control" placeholder="اسم المركز" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
+              </div>
+              <div className="col-md-3">
+                <input className="form-control" placeholder="العنوان" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
+              </div>
+              <div className="col-md-2">
+                <input className="form-control" placeholder="المدينة" value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
+              </div>
+              <div className="col-md-2">
+                <input className="form-control" placeholder="الهاتف" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />
+              </div>
+              <div className="col-md-2">
+                <button type="submit" className="btn btn-primary w-100">
+                  {editId ? "تحديث" : "حفظ"}
+                </button>
+              </div>
             </div>
-            <div className="col-md-3">
-              <input className="form-control" placeholder="العنوان" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} />
-            </div>
-            <div className="col-md-2">
-              <input className="form-control" placeholder="المدينة" value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
-            </div>
-            <div className="col-md-2">
-              <input className="form-control" placeholder="الهاتف" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />
-            </div>
-            <div className="col-md-2">
-              <button type="submit" className="btn btn-primary w-100">
-                {editId ? "تحديث" : "حفظ"}
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
+          </form>
+        )}
 
-      <div className="card p-3">
-        <table className="table table-bordered table-hover text-center">
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>اسم المركز</th>
-              <th>العنوان</th>
-              <th>المدينة</th>
-              <th>الهاتف</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {centres.map((c, i) => (
-              <tr key={c.id}>
-                <td>{i + 1}</td>
-                <td>{c.nom}</td>
-                <td>{c.adresse}</td>
-                <td>{c.ville}</td>
-                <td>{c.telephone}</td>
-                <td>
-                  <button className="btn btn-sm btn-warning me-1" onClick={() => handleEdit(c)}>تعديل</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(c.id)}>حذف</button>
-                </td>
+        <div className="card p-3">
+          <table className="table table-bordered table-hover text-center">
+            <thead className="table-dark">
+              <tr>
+                <th>#</th>
+                <th>اسم المركز</th>
+                <th>العنوان</th>
+                <th>المدينة</th>
+                <th>الهاتف</th>
+                <th>إجراءات</th>
               </tr>
-            ))}
-            {centres.length === 0 && (
-              <tr><td colSpan={6} className="text-muted">لا توجد مراكز بعد</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {centres.map((c, i) => (
+                <tr key={c.id}>
+                  <td>{i + 1}</td>
+                  <td>{c.nom}</td>
+                  <td>{c.adresse}</td>
+                  <td>{c.ville}</td>
+                  <td>{c.telephone}</td>
+                  <td>
+                    <button className="btn btn-sm btn-warning me-1" onClick={() => handleEdit(c)}>تعديل</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(c.id)}>حذف</button>
+                  </td>
+                </tr>
+              ))}
+              {centres.length === 0 && (
+                <tr><td colSpan={6} className="text-muted">لا توجد مراكز بعد</td></tr>
+              )}
+</tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

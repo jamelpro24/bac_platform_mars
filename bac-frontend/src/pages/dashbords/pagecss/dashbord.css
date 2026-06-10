@@ -1,31 +1,20 @@
-/* ========================= */
-/* RESET                     */
-/* ========================= */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-}
-
 /* DASHBOARD */
 .dashboard {
   direction: rtl;
-  width: 100%;
   min-height: 100vh;
   background: linear-gradient(135deg, #e9fbe9, #c8f2cc);
-  font-family: 'Tajawal', 'Almarai', sans-serif;
-  position: relative;
-  padding-top: 1cm;
+  font-family: 'Tajawal','Almarai', sans-serif;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* CONTAINER */
 .dashboard-container {
-  padding: 40px 60px;
+  padding: 0 10px 20px;
+  margin-top: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: auto;
 }
 
 /* TITLE */
@@ -37,16 +26,12 @@ html, body {
   margin-bottom: 40px;
 }
 
-/* CARDS - ROW 1 */
+/* CARDS */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 25px;
-}
-
-/* CARDS - ROW 2 */
-.cards-row2 {
-  margin-top: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  width: 100%;
 }
 
 .card {
@@ -54,65 +39,129 @@ html, body {
   padding: 25px;
   border-radius: 18px;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
   transition: 0.3s;
   cursor: pointer;
 }
 
 .card:hover {
   transform: translateY(-5px) scale(1.05);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.15);
 }
 
 .card h3 {
   margin-top: 10px;
   font-size: 20px;
   font-weight: 700;
-  color: #1e293b;
 }
 
 .card p {
   color: #666;
   font-size: 15px;
-  margin-top: 6px;
 }
 
 /* ICON COLORS */
-.icon { margin-bottom: 10px; }
-.green  { color: #22c55e; }
-.blue   { color: #3b82f6; }
-.orange { color: #f97316; }
-.purple { color: #8b5cf6; }
-
-/* ========================= */
-/* LAYOUT + SIDEBAR          */
-/* ========================= */
-
-.layout {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
+.icon {
+  margin-bottom: 10px;
 }
 
+.green { color: #22c55e; }
+.blue { color: #3b82f6; }
+.orange { color: #f97316; }
+.purple { color: #8b5cf6; }
+.gold { color: #eab308; }
+.teal { color: #14b8a6; }
+.pink { color: #ec4899; }
+.red { color: #ef4444; }
+
+/* COMING SOON */
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.coming-soon svg {
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.coming-soon h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+/* STATS */
+.stats {
+  margin-top: 50px;
+  display: flex;
+  gap: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  width: 220px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+.stat-card h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.stat-card p {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1e9e57;
+}
+
+/* LAYOUT */
+.layout {
+  display: flex;
+}
+
+/* SIDEBAR */
 .sidebar {
-  width: 6cm;
+  width: 220px;
   background: #1e293b;
   color: white;
   min-height: 100vh;
-  position: fixed;
-  right: 0;
-  top: 0;
   padding: 20px;
   transition: width 0.3s ease;
-  z-index: 100;
+  position: sticky;
+  top: 0;
+  float: right;
 }
 
+/* MAIN CONTENT */
+.main {
+  flex: 1;
+  padding: 0 6cm 20px 20px;
+  transition: all 0.3s ease;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* عند الإغلاق */
 .sidebar.closed {
   width: 0;
   padding: 0;
   overflow: hidden;
 }
 
+/* LINKS */
 .sidebar .nav-link {
   color: white;
   margin: 10px 0;
@@ -124,14 +173,14 @@ html, body {
   color: #22c55e;
 }
 
+/* MAIN CONTENT */
 .main {
   flex: 1;
-  margin-right: 6cm;
-  padding: 20px;
+  padding: 0 6cm 20px 20px;
   transition: all 0.3s ease;
-  min-height: 100vh;
 }
 
+/* زر toggle */
 .toggle-btn {
   margin-bottom: 20px;
   padding: 8px 12px;
@@ -142,33 +191,19 @@ html, body {
   border-radius: 6px;
 }
 
-/* ========================= */
-/* RESPONSIVE                */
-/* ========================= */
+/* RESPONSIVE */
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 20px;
-  }
-
-  .main {
-    margin-right: 0;
-  }
-
-  .sidebar {
-    display: none;
+    padding: 30px;
   }
 }
-
-/* ========================= */
-/* GENERAL PAGE              */
-/* ========================= */
-
 .general-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
 }
 
+/* نفس card dashboard */
 .card input,
 .card select {
   margin-top: 10px;
@@ -178,10 +213,12 @@ html, body {
   border: 1px solid #ccc;
 }
 
+/* full width */
 .card.full {
   grid-column: 1 / -1;
 }
 
+/* TAGS */
 .tags {
   margin-top: 10px;
   display: flex;
@@ -195,4 +232,22 @@ html, body {
   padding: 6px 12px;
   border-radius: 10px;
   font-size: 14px;
+}
+
+/* PAGE HEADER */
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e9e57;
+  font-size: 28px;
+}
+
+.page-header p {
+  color: #666;
+  margin-top: 5px;
 }

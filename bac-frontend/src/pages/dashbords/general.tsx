@@ -14,6 +14,7 @@ type GeneralData = {
   delegation: string;
   nombre_candidats: number;
   nombre_salles: number;
+  nom_admin: string;
   sections: Section[];
 };
 
@@ -38,9 +39,18 @@ const delegationsList = [
   "قفصة", "توزر", "قبلي"
 ];
 
-// ✅ Normalisation pour éviter les faux doublons
-const normalizeText = (text: string) =>
-  text.trim().replace(/\s+/g, " ").normalize("NFC");
+// ✅ Normalisation pour éviter les faux doublons (ال + و prefix + tri)
+const normalizeText = (text: string) => {
+  const words = text.trim().normalize("NFC").split(/\s+/).map(w => {
+    while (true) {
+      if (w.startsWith("ال") && w.length > 2) { w = w.slice(2); continue; }
+      if (w.startsWith("و")) { w = w.slice(1); continue; }
+      break;
+    }
+    return w;
+  }).filter(Boolean);
+  return [...new Set(words)].sort().join(" ");
+};
 
 export default function General() {
   const [data, setData] = useState<GeneralData>({
@@ -49,6 +59,7 @@ export default function General() {
     delegation: "",
     nombre_candidats: 0,
     nombre_salles: 0,
+    nom_admin: "",
     sections: []
   });
 
@@ -119,6 +130,7 @@ export default function General() {
         delegation: data.delegation,
         nombre_candidats: data.nombre_candidats,
         nombre_salles: data.nombre_salles,
+        nom_admin: data.nom_admin,
       };
       await API.put("general/", payload);
       setSuccess("تم حفظ البيانات بنجاح");
@@ -148,6 +160,16 @@ export default function General() {
               type="text"
               value={data.centre || "لم يتم تحديد المركز"}
               readOnly
+            />
+          </div>
+
+          {/* NOM ADMIN */}
+          <div className="card">
+            <h3>رئيس مركز الامتحان</h3>
+            <input
+              type="text"
+              value={data.nom_admin}
+              onChange={(e) => setData({ ...data, nom_admin: e.target.value })}
             />
           </div>
 

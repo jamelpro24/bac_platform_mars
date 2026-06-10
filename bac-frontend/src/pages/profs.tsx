@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import Header from "../components/Header";
 import "../pages/dashbords/pagecss/dashbord.css";
 import "../pages/dashbords/pagecss/profs.css";
+import "./acceuil/home.css";
 
 interface Professeur {
   id: number;
@@ -10,6 +12,7 @@ interface Professeur {
   specialite: string;
   institution: string;
   telephone: string;
+  sexe: string;
   centre: number | string;
   centre_name?: string;
 }
@@ -36,15 +39,19 @@ export default function Profs() {
     nom: "",
     specialite: "",
     institution: "",
+    sexe: "",
     centre: "",
   });
   const [editId, setEditId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [importText, setImportText] = useState("");
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [loadingImport, setLoadingImport] = useState(false);
+  const [sexeChanges, setSexeChanges] = useState<Record<number, string>>({});
+  const [savingSexe, setSavingSexe] = useState(false);
 
   const fetchProfs = () => {
     API.get("professeurs/").then((res) => setProfs(res.data));
@@ -60,6 +67,7 @@ export default function Profs() {
       nom: "",
       specialite: "",
       institution: "",
+      sexe: "",
       centre: "",
     });
     setEditId(null);
@@ -77,6 +85,7 @@ export default function Profs() {
       nom: form.nom,
       specialite: form.specialite,
       institution: form.institution,
+      sexe: form.sexe,
       centre: form.centre,
     };
 
@@ -96,6 +105,7 @@ export default function Profs() {
       nom: p.nom,
       specialite: p.specialite,
       institution: p.institution || "",
+      sexe: p.sexe || "",
       centre: p.centre_name || String(p.centre || ""),
     });
     setEditId(p.id);
@@ -140,6 +150,37 @@ export default function Profs() {
     }
   };
 
+  const handleExcelImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!excelFile) {
+      setErrorMessage("يرجى اختيار ملف Excel.");
+      return;
+    }
+
+    setLoadingImport(true);
+    setErrorMessage("");
+    setImportResult(null);
+
+    const data = new FormData();
+    data.append("file", excelFile);
+    if (form.centre.trim()) {
+      data.append("centre", form.centre.trim());
+    }
+
+    try {
+      const res = await API.post<ImportResponse>("professeurs/import-excel/", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setImportResult(res.data);
+      setExcelFile(null);
+      fetchProfs();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.error || "فشل استيراد ملف Excel.");
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
   const handleTextImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importText.trim()) {
@@ -167,229 +208,336 @@ export default function Profs() {
     }
   };
 
-  return (
-    <div className="dashboard-container profs-page" dir="rtl">
-      <h2 className="dashboard-title">إدارة الأساتذة</h2>
+  const saveSexeChanges = async () => {
+    const ids = Object.keys(sexeChanges);
+    if (ids.length === 0) return;
+    setSavingSexe(true);
+    setErrorMessage('');
+    try {
+      await Promise.all(ids.map(id =>
+        API.patch(`professeurs/${id}/`, { sexe: sexeChanges[Number(id)] })
+      ));
+      setSexeChanges({});
+      fetchProfs();
+    } catch (error: any) {
+      const detail = error?.response?.data?.error || error?.response?.data?.detail || (typeof error?.response?.data === 'string' ? error.response.data : null) || error?.message || 'فشل حفظ الجنس.';
+      setErrorMessage(detail);
+      console.error('PATCH sexe error:', error?.response?.status, error?.response?.data);
+    } finally {
+      setSavingSexe(false);
+    }
+  };
 
-      <div className="card p-3 mb-4 profs-section-card">
-        <div className="profs-intro mb-3">
-          <h5 className="mb-1">استيراد PDF</h5>
-          <p className="text-muted mb-0">
-            سيتم استخراج الأعمدة التالية: المعرف الوحيد، الاسم واللقب، مادة التدريس، المؤسسة.
-          </p>
+  const hasSexeChanges = Object.keys(sexeChanges).length > 0;
+
+  return (
+    <div className="dashboard" style={{ padding: "1.5rem 6cm 1.5rem 1.5rem" }}>
+      <Header />
+      <div className="dashboard-container profs-page" dir="rtl">
+        <h2 className="dashboard-title">إدارة الأساتذة</h2>
+
+        <div className="card p-3 mb-4 profs-section-card">
+          <div className="profs-intro mb-3">
+            <h5 className="mb-1">استيراد PDF</h5>
+            <p className="text-muted mb-0">
+              سيتم استخراج الأعمدة التالية: المعرف الوحيد، الاسم واللقب، مادة التدريس، المؤسسة.
+            </p>
+          </div>
+
+          <form onSubmit={handleImport}>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-5">
+                <label className="form-label d-block">ملف PDF</label>
+                <label className="btn w-100 profs-upload-button">
+                  اختيار ملف
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    hidden
+                    onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <div className="form-text text-truncate profs-filename">
+                  {pdfFile?.name || "لم يتم اختيار أي ملف"}
+                </div>
+              </div>
+
+              <div className="col-md-4">
+                <label className="form-label">المركز</label>
+                <input
+                  className="form-control"
+                  placeholder="اكتب اسم المركز"
+                  value={form.centre}
+                  onChange={(e) => setForm({ ...form, centre: e.target.value })}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <button type="submit" className="btn btn-primary w-100 profs-primary-btn" disabled={loadingImport}>
+                  {loadingImport ? "جاري الاستيراد..." : "استيراد PDF"}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <hr className="my-4" />
+
+          <div className="profs-intro mb-3">
+            <h5 className="mb-1">استيراد Excel</h5>
+            <p className="text-muted mb-0">
+              يمكن استيراد ملف Excel يحتوي على الأعمدة: المعرف الوحيد، الاسم واللقب، مادة التدريس، المؤسسة.
+            </p>
+          </div>
+
+          <form onSubmit={handleExcelImport}>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-5">
+                <label className="form-label d-block">ملف Excel</label>
+                <label className="btn w-100 profs-upload-button">
+                  اختيار ملف
+                  <input
+                    type="file"
+                    accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12"
+                    hidden
+                    onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <div className="form-text text-truncate profs-filename">
+                  {excelFile?.name || "لم يتم اختيار أي ملف"}
+                </div>
+              </div>
+
+              <div className="col-md-4">
+                <label className="form-label">المركز</label>
+                <input
+                  className="form-control"
+                  placeholder="اكتب اسم المركز"
+                  value={form.centre}
+                  onChange={(e) => setForm({ ...form, centre: e.target.value })}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <button type="submit" className="btn btn-primary w-100 profs-primary-btn" disabled={loadingImport}>
+                  {loadingImport ? "جاري الاستيراد..." : "استيراد Excel"}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <hr className="my-4" />
+
+          <form onSubmit={handleTextImport}>
+            <div className="mb-3">
+              <label className="form-label">لصق نص الوثيقة</label>
+              <textarea
+                className="form-control"
+                rows={8}
+                placeholder="ألصق هنا النص المستخرج من ملف PDF..."
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+              />
+            </div>
+
+            <div className="d-flex justify-content-end">
+              <button type="submit" className="btn btn-outline-primary profs-outline-btn" disabled={loadingImport}>
+                {loadingImport ? "جاري الاستيراد..." : "استيراد النص"}
+              </button>
+            </div>
+          </form>
+
+          {errorMessage && <div className="alert alert-danger mt-3 mb-0">{errorMessage}</div>}
+
+          {importResult && (
+            <div className="mt-3">
+              <div className="alert alert-success mb-3">{importResult.message}</div>
+              {importResult.preview.length > 0 && (
+                <div className="table-responsive profs-table-wrap">
+                  <table className="table table-bordered table-sm text-center profs-preview-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>المعرف الوحيد</th>
+                        <th>الاسم واللقب</th>
+                        <th>مادة التدريس</th>
+                        <th>المؤسسة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importResult.preview.map((item, index) => (
+                        <tr key={`${item.identifiant_unique}-${index}`}>
+                          <td>{index + 1}</td>
+                          <td>{item.identifiant_unique}</td>
+                          <td>{item.nom}</td>
+                          <td>{item.specialite}</td>
+                          <td>{item.institution}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <form onSubmit={handleImport}>
-          <div className="row g-3 align-items-end">
-            <div className="col-md-5">
-              <label className="form-label d-block">ملف PDF</label>
-              <label className="btn w-100 profs-upload-button">
-                اختيار ملف
+        <button
+          className="btn btn-success mb-3 profs-primary-btn"
+          onClick={() => {
+            setShowForm(!showForm);
+            if (showForm) {
+              resetForm();
+            } else {
+              setEditId(null);
+              setForm({
+                identifiant_unique: "",
+                nom: "",
+                specialite: "",
+                institution: "",
+                sexe: "",
+                centre: "",
+              });
+            }
+          }}
+        >
+          {showForm ? "إلغاء" : "إضافة أستاذ"}
+        </button>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="card p-3 mb-4 profs-form-card">
+            <div className="row g-3">
+              <div className="col-md-3">
                 <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  hidden
-                  onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                  className="form-control"
+                  placeholder="المعرف الوحيد"
+                  value={form.identifiant_unique}
+                  onChange={(e) => setForm({ ...form, identifiant_unique: e.target.value })}
+                  required
                 />
-              </label>
-              <div className="form-text text-truncate profs-filename">
-                {pdfFile?.name || "لم يتم اختيار أي ملف"}
+              </div>
+              <div className="col-md-3">
+                <input
+                  className="form-control"
+                  placeholder="الاسم واللقب"
+                  value={form.nom}
+                  onChange={(e) => setForm({ ...form, nom: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="col-md-2">
+                <input
+                  className="form-control"
+                  placeholder="مادة التدريس"
+                  value={form.specialite}
+                  onChange={(e) => setForm({ ...form, specialite: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="col-md-2">
+                <input
+                  className="form-control"
+                  placeholder="المؤسسة"
+                  value={form.institution}
+                  onChange={(e) => setForm({ ...form, institution: e.target.value })}
+                />
+              </div>
+              <div className="col-md-1">
+                <select
+                  className="form-control"
+                  value={form.sexe}
+                  onChange={(e) => setForm({ ...form, sexe: e.target.value })}
+                >
+                  <option value="">الجنس</option>
+                  <option value="M">ذكر</option>
+                  <option value="F">أنثى</option>
+                </select>
+              </div>
+              <div className="col-md-1">
+                <input
+                  className="form-control"
+                  placeholder="المركز"
+                  value={form.centre}
+                  onChange={(e) => setForm({ ...form, centre: e.target.value })}
+                />
+              </div>
+              <div className="col-md-1">
+                <button type="submit" className="btn btn-primary w-100 profs-primary-btn">
+                  {editId ? "تحديث" : "حفظ"}
+                </button>
               </div>
             </div>
-
-            <div className="col-md-4">
-              <label className="form-label">المركز</label>
-              <input
-                className="form-control"
-                placeholder="اكتب اسم المركز"
-                value={form.centre}
-                onChange={(e) => setForm({ ...form, centre: e.target.value })}
-              />
-            </div>
-
-            <div className="col-md-3">
-              <button type="submit" className="btn btn-primary w-100 profs-primary-btn" disabled={loadingImport}>
-                {loadingImport ? "جاري الاستيراد..." : "استيراد PDF"}
-              </button>
-            </div>
-          </div>
-        </form>
-
-        <hr className="my-4" />
-
-        <form onSubmit={handleTextImport}>
-          <div className="mb-3">
-            <label className="form-label">لصق نص الوثيقة</label>
-            <textarea
-              className="form-control"
-              rows={8}
-              placeholder="ألصق هنا النص المستخرج من ملف PDF..."
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-            />
-          </div>
-
-          <div className="d-flex justify-content-end">
-            <button type="submit" className="btn btn-outline-primary profs-outline-btn" disabled={loadingImport}>
-              {loadingImport ? "جاري الاستيراد..." : "استيراد النص"}
-            </button>
-          </div>
-        </form>
-
-        {errorMessage && <div className="alert alert-danger mt-3 mb-0">{errorMessage}</div>}
-
-        {importResult && (
-          <div className="mt-3">
-            <div className="alert alert-success mb-3">{importResult.message}</div>
-            {importResult.preview.length > 0 && (
-              <div className="table-responsive profs-table-wrap">
-                <table className="table table-bordered table-sm text-center profs-preview-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>المعرف الوحيد</th>
-                      <th>الاسم واللقب</th>
-                      <th>مادة التدريس</th>
-                      <th>المؤسسة</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {importResult.preview.map((item, index) => (
-                      <tr key={`${item.identifiant_unique}-${index}`}>
-                        <td>{index + 1}</td>
-                        <td>{item.identifiant_unique}</td>
-                        <td>{item.nom}</td>
-                        <td>{item.specialite}</td>
-                        <td>{item.institution}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          </form>
         )}
-      </div>
 
-      <button
-        className="btn btn-success mb-3 profs-primary-btn"
-        onClick={() => {
-          setShowForm(!showForm);
-          if (showForm) {
-            resetForm();
-          } else {
-            setEditId(null);
-            setForm({
-              identifiant_unique: "",
-              nom: "",
-              specialite: "",
-              institution: "",
-              centre: "",
-            });
-          }
-        }}
-      >
-        {showForm ? "إلغاء" : "إضافة أستاذ"}
-      </button>
-
-      {showForm && (
-        <form onSubmit={handleSubmit} className="card p-3 mb-4 profs-form-card">
-          <div className="row g-3">
-            <div className="col-md-2">
-              <input
-                className="form-control"
-                placeholder="المعرف الوحيد"
-                value={form.identifiant_unique}
-                onChange={(e) => setForm({ ...form, identifiant_unique: e.target.value })}
-              />
-            </div>
-            <div className="col-md-3">
-              <input
-                className="form-control"
-                placeholder="الاسم واللقب"
-                value={form.nom}
-                onChange={(e) => setForm({ ...form, nom: e.target.value })}
-                required
-              />
-            </div>
-            <div className="col-md-2">
-              <input
-                className="form-control"
-                placeholder="مادة التدريس"
-                value={form.specialite}
-                onChange={(e) => setForm({ ...form, specialite: e.target.value })}
-                required
-              />
-            </div>
-            <div className="col-md-3">
-              <input
-                className="form-control"
-                placeholder="المؤسسة"
-                value={form.institution}
-                onChange={(e) => setForm({ ...form, institution: e.target.value })}
-              />
-            </div>
-            <div className="col-md-1">
-              <input
-                className="form-control"
-                placeholder="المركز"
-                value={form.centre}
-                onChange={(e) => setForm({ ...form, centre: e.target.value })}
-              />
-            </div>
-            <div className="col-md-1">
-              <button type="submit" className="btn btn-primary w-100 profs-primary-btn">
-                {editId ? "تحديث" : "حفظ"}
+        <div className="card p-3 profs-form-card">
+          <div className="table-responsive profs-table-wrap">
+            <table className="table table-bordered table-hover text-center profs-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>المعرف الوحيد</th>
+                  <th>الاسم واللقب</th>
+                  <th>مادة التدريس</th>
+                  <th>المؤسسة</th>
+                  <th>الجنس</th>
+                  <th>المركز</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profs.map((p, i) => (
+                  <tr key={p.id}>
+                    <td>{i + 1}</td>
+                    <td>{p.identifiant_unique || "-"}</td>
+                    <td>{p.nom}</td>
+                    <td>{p.specialite}</td>
+                    <td>{p.institution}</td>
+                    <td>
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ minWidth: 80 }}
+                        value={p.id in sexeChanges ? sexeChanges[p.id] : p.sexe || ''}
+                        onChange={(e) => setSexeChanges({ ...sexeChanges, [p.id]: e.target.value })}
+                      >
+                        <option value="">--</option>
+                        <option value="M">ذكر</option>
+                        <option value="F">أنثى</option>
+                      </select>
+                    </td>
+                    <td>{getCentreName(p)}</td>
+                    <td>
+                      <button className="btn btn-sm btn-warning me-1" onClick={() => handleEdit(p)}>
+                        تعديل
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(p.id)}>
+                        حذف
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {profs.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-muted profs-empty">
+                      لا يوجد أساتذة مسجلون حالياً.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {hasSexeChanges && (
+            <div className="text-center mt-3">
+              <button
+                className="btn btn-success"
+                onClick={saveSexeChanges}
+                disabled={savingSexe}
+              >
+                {savingSexe ? 'جاري الحفظ...' : `حفظ التغييرات (${Object.keys(sexeChanges).length})`}
               </button>
             </div>
-          </div>
-        </form>
-      )}
-
-      <div className="card p-3 profs-form-card">
-        <div className="table-responsive profs-table-wrap">
-          <table className="table table-bordered table-hover text-center profs-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>المعرف الوحيد</th>
-                <th>الاسم واللقب</th>
-                <th>مادة التدريس</th>
-                <th>المؤسسة</th>
-                <th>المركز</th>
-                <th>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profs.map((p, i) => (
-                <tr key={p.id}>
-                  <td>{i + 1}</td>
-                  <td>{p.identifiant_unique || "-"}</td>
-                  <td>{p.nom}</td>
-                  <td>{p.specialite}</td>
-                  <td>{p.institution || "-"}</td>
-                  <td>{getCentreName(p)}</td>
-                  <td>
-                    <button className="btn btn-sm btn-warning me-1" onClick={() => handleEdit(p)}>
-                      تعديل
-                    </button>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(p.id)}>
-                      حذف
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {profs.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-muted profs-empty">
-                    لا يوجد أساتذة مسجلون حاليا.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          )}
         </div>
       </div>
     </div>
-  );
+);
 }
