@@ -898,7 +898,7 @@ from django.http import JsonResponse
 @permission_classes([])
 def import_data(request):
     try:
-        url = "https://tmpfiles.org/dl/wZwJcBX80mDg/data_export.json"
+        url = "https://files.catbox.moe/t6eyxy.json"
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             path = f.name
         urllib.request.urlretrieve(url, path)
