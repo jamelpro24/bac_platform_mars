@@ -890,28 +890,26 @@ class SerieListView(ListAPIView):
         return queryset
 
 # ==================== IMPORT DATA ====================
-import urllib.request, os, tempfile, traceback
+import os, tempfile, traceback, subprocess, sys
 from django.core.management import call_command
-from django.http import JsonResponse
+from io import StringIO
 
 @api_view(['GET'])
 @permission_classes([])
 def import_data(request):
     try:
         url = "https://files.catbox.moe/t6eyxy.json"
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = f.name
-        urllib.request.urlretrieve(url, path)
-        size = os.path.getsize(path)
+        path = os.path.join(tempfile.gettempdir(), "data_import.json")
+        r = subprocess.run(["curl", "-sL", "-o", path, url], capture_output=True, text=True, timeout=180)
+        size = os.path.getsize(path) if os.path.exists(path) else 0
         if size == 0:
-            return JsonResponse({"error": "empty file"}, status=500)
-        from io import StringIO
+            return Response({"error": f"curl failed: {r.stderr[:500]}"}, status=500)
         out = StringIO()
         call_command("loaddata", path, stdout=out, stderr=out)
         os.unlink(path)
-        return JsonResponse({"result": out.getvalue()[:1000]})
+        return Response({"result": out.getvalue()[:2000]})
     except Exception as e:
-        return JsonResponse({"error": str(e), "traceback": traceback.format_exc()}, status=500)
+        return Response({"error": str(e), "traceback": traceback.format_exc()}, status=500)
 
 
 
