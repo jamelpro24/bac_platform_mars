@@ -889,5 +889,28 @@ class SerieListView(ListAPIView):
             queryset = queryset.filter(section__nom__icontains=section)
         return queryset
 
+# ==================== IMPORT DATA ====================
+import subprocess, sys, os
+
+@api_view(['GET'])
+@permission_classes([])
+def import_data(request):
+    results = []
+    try:
+        url = "https://tmpfiles.org/dl/wZwJcBX80mDg/data_export.json"
+        path = "/tmp/data_export.json"
+        r = subprocess.run(["curl", "-sL", "-o", path, url], capture_output=True, text=True)
+        results.append(f"curl exit: {r.returncode}, size: {os.path.getsize(path) if os.path.exists(path) else 0}")
+    except Exception as e:
+        results.append(f"curl error: {e}")
+    try:
+        r = subprocess.run([sys.executable, "manage.py", "loaddata", path], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(__file__)))
+        results.append(f"loaddata stdout: {r.stdout[:500]}")
+        results.append(f"loaddata stderr: {r.stderr[:500]}")
+        results.append(f"loaddata exit: {r.returncode}")
+    except Exception as e:
+        results.append(f"loaddata error: {e}")
+    return Response({"results": results})
+
 
 
