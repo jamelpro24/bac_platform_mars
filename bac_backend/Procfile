@@ -5,10 +5,15 @@ try:
     u = User.objects.get(username='admin')
     u.set_password('admin123')
     u.is_active = True
+    u.role = 'admin'
+    u.centre = 'centre'
     u.save()
     print('admin password updated')
 except User.DoesNotExist:
-    User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+    u = User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+    u.role = 'admin'
+    u.centre = 'centre'
+    u.save()
     print('admin superuser created')
 try:
     u = User.objects.get(username='jamel')
