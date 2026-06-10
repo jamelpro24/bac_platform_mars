@@ -5,6 +5,6 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   css: {
-    minify: 'esbuild',
+    transformer: 'postcss',
   },
 });
