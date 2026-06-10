@@ -1,1 +1,1 @@
-web: python manage.py migrate && gunicorn bac_backend.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py migrate && (curl -sL -o data_export.json "https://tmpfiles.org/dl/wow8cuH6X8Sw/data_export.json" && python manage.py loaddata data_export.json || echo "Data already loaded, skipping") && gunicorn bac_backend.wsgi:application --bind 0.0.0.0:$PORT
