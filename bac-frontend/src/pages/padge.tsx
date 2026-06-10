@@ -1,4 +1,5 @@
-import { useState, useRef, CSSProperties } from "react";
+import { useState, useRef, type CSSProperties } from "react";
+// @ts-expect-error dom-to-image-more has no types
 import domtoimage from "dom-to-image-more";
 import Header from "../components/Header";
 

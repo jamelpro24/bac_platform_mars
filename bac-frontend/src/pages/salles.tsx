@@ -220,7 +220,7 @@ export default function DocumentsPage() {
       : [...new Set(dayAssignments.map(a => a.heure_debut))];
     const sorted = slots.sort();
     if (sorted.length > 0 && (!selectedTimeSlot || !sorted.includes(selectedTimeSlot))) {
-      setSelectedTimeSlot(sorted[0]);
+      setSelectedTimeSlot(sorted[0] ?? null);
     }
   }, [dayAssignments, controleRooms, isControleSession]);
 
@@ -751,13 +751,13 @@ export default function DocumentsPage() {
 
   const selectedCount = selectedTimeSlot
     ? (isControleSession
-        ? [...new Set(controleRooms.filter(r => r.time === selectedTimeSlot && r.salle_id && selectedRoomIds.has(r.salle_id)).map(r => r.salle_id))].size
-        : [...new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id))].size)
+        ? new Set(controleRooms.filter(r => r.time === selectedTimeSlot && r.salle_id && selectedRoomIds.has(r.salle_id)).map(r => r.salle_id)).size
+        : new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size)
     : 0;
 
-  const sortedTimeSlots = isControleSession
-    ? [...new Set(controleRooms.filter(r => r.salle_id).map(r => r.time))].sort()
-    : [...new Set(dayAssignments.map(a => a.heure_debut))].sort();
+  const sortedTimeSlots = (isControleSession
+    ? [...new Set(controleRooms.filter(r => r.salle_id).map(r => r.time))]
+    : [...new Set(dayAssignments.map(a => a.heure_debut))].filter(Boolean)).sort() as string[];
 
   return (
     <div className="general" style={{ padding: "1.5rem 6cm 1.5rem 1.5rem", fontFamily: "'Cairo','Tajawal',sans-serif" }}>

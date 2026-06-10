@@ -145,7 +145,7 @@ export default function SurveillanceProfs() {
   // Auto-show table when genResult is set (after generate or auto-restore)
   useEffect(() => {
     if (!genResult) return;
-    const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort();
+    const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort() as string[];
     if (allDates.length > 0 && !roomsViewDate) setRoomsViewDate(allDates[0]);
     if (genFilter === null) {
       setGenFilter(0);
@@ -174,23 +174,23 @@ export default function SurveillanceProfs() {
           if (ctrlPlans.length > 0) {
             setControlePlanId(ctrlPlans[0].id);
             API.get(`surveillance-plans/${ctrlPlans[0].id}/`).then(ctrlRes => {
-              setGenResult(prev => {
+              setGenResult((prev: any) => {
                 if (!prev) return prev;
                 const mergedAssignments = [...(prev.assignments || []), ...(ctrlRes.data.assignments || [])];
                 const mergedSummary = [...(prev.summary || [])];
                 const sumMap = new Map(mergedSummary.map((s: any) => [s.professeur_id, s]));
-                for (const s of (ctrlRes.data.summary || [])) {
+      for (const s of (ctrlRes.data.summary || []) as SummaryItem[]) {
                   if (!sumMap.has(s.professeur_id)) mergedSummary.push(s);
                 }
                 return { ...prev, assignments: mergedAssignments, summary: mergedSummary };
               });
               // Build pairs
-              const ctrlKeys = [...new Set((ctrlRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort();
+              const ctrlKeys = [...new Set((ctrlRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort() as string[];
               setCtrlPairs(ctrlKeys);
             });
           }
         }
-        const mainKeys = [...new Set((res.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort();
+        const mainKeys = [...new Set((res.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort() as string[];
         setMainPairs(mainKeys);
       }).catch(() => {});
     }
@@ -424,8 +424,8 @@ export default function SurveillanceProfs() {
       // Merge contrôle assignments + summary into genResult
       const mainSumMap = new Map((mainRes.data.summary || []).map((s: any) => [s.professeur_id, s]));
       const mergedSummary = [...(mainRes.data.summary || [])];
-      for (const s of (ctrlRes.data.summary || [])) {
-        const existing = mainSumMap.get(s.professeur_id);
+      for (const s of (ctrlRes.data.summary || []) as SummaryItem[]) {
+        const existing = mainSumMap.get(s.professeur_id) as any;
         if (existing) {
           existing.sur_heures += s.sur_heures;
           existing.sup_heures += s.sup_heures;
@@ -437,11 +437,11 @@ export default function SurveillanceProfs() {
         }
       }
       // Store date|session keys for section headers
-      const mainKeys = [...new Set((mainRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort();
-      const ctrlKeys = [...new Set((ctrlRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort();
+      const mainKeys = [...new Set((mainRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort() as string[];
+      const ctrlKeys = [...new Set((ctrlRes.data.assignments || []).map((a: any) => `${a.date}|${a.session_number}`))].sort() as string[];
       setMainPairs(mainKeys);
       setCtrlPairs(ctrlKeys);
-      setGenResult(prev => ({
+      setGenResult((prev: any) => ({
         ...prev,
         assignments: [...(prev?.assignments || []), ...(ctrlRes.data.assignments || [])],
         summary: mergedSummary,
@@ -561,35 +561,6 @@ export default function SurveillanceProfs() {
     return { hard: null, soft: null };
   };
 
-  const handleDropOnCell = async (targetCell: { surv: Assignment[]; sup: Assignment[] }, targetCellDate: string, targetCellSession: number) => {
-    if (!dragInfo || !editPlan) return;
-    const sourceAs = dragInfo.assignment;
-    const allTarget = [...targetCell.surv, ...targetCell.sup];
-
-    // Find which professor the target cell belongs to (from the first item, or determine from the column)
-    // We need to know the target prof. If cell is not empty, use the first assignment's prof.
-    // We'll pass profProfId separately from the rendering context.
-
-    setDragInfo(null);
-  };
-
-  // Store a pending professeur change for an assignment
-  const setPending = (assignmentId: number, newProfId: number) => {
-    setPendingChanges(prev => {
-      const next = new Map(prev);
-      next.set(assignmentId, newProfId);
-      return next;
-    });
-  };
-
-  const clearPending = (assignmentId: number) => {
-    setPendingChanges(prev => {
-      const next = new Map(prev);
-      next.delete(assignmentId);
-      return next;
-    });
-  };
-
   // Perform the actual move/swap (stores in pendingChanges, updates UI optimistically)
   const doSwap = (sourceId: number, sourceProfId: number, targetId: number, targetProfId_: number) => {
     setPendingChanges(prev => {
@@ -694,7 +665,7 @@ export default function SurveillanceProfs() {
   };
 
   // Wrapper to be called from JSX with the prof ID
-  const handleDropOnCellFor = (targetCell: { surv: Assignment[]; sup: Assignment[] }, targetCellDate: string, targetCellSession: number, targetProfId: number) => {
+  const handleDropOnCellFor = (targetCell: { surv: Assignment[]; sup: Assignment[] }, _targetCellDate: string, _targetCellSession: number, targetProfId: number) => {
     if (!dragInfo || !editPlan) return;
     const sourceAs = dragInfo.assignment;
     const allTarget = [...targetCell.surv, ...targetCell.sup];
@@ -938,7 +909,6 @@ export default function SurveillanceProfs() {
                                   <td style={{ padding: "6px 8px", textAlign: "center" }}>
                                     <button onClick={() => {
                                       // Move prof to contrôle group
-                                      const from = gi === 0 ? group1 : group2;
                                       const setFrom = gi === 0 ? setGroup1 : setGroup2;
                                       setFrom(prev => prev.filter(pp => pp.id !== p.id));
                                       setControle(prev => [...prev, p]);
@@ -986,9 +956,9 @@ export default function SurveillanceProfs() {
 
             {/* Rooms view */}
             {schedView === "salles" && (() => {
-              const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort();
+              const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort() as string[];
               const dateForView = roomsViewDate || allDates[0] || "";
-              const allSessions = [...new Set((genResult.assignments || []).filter((a: any) => a.date === dateForView).map((a: any) => a.session_number))].sort();
+              const allSessions = [...new Set((genResult.assignments || []).filter((a: any) => a.date === dateForView).map((a: any) => a.session_number))].sort() as number[];
               const sessionForView = allSessions.includes(roomsViewSession) ? roomsViewSession : (allSessions[0] || 1);
               const filtered = (genResult.assignments || []).filter((a: any) => a.date === dateForView && a.session_number === sessionForView);
               const rooms: Record<number, any[]> = {};
@@ -1076,9 +1046,9 @@ export default function SurveillanceProfs() {
             {/* 4 filter cards: الكل, مجموعة واحد, مجموعة 2, مجموعة تحكم (only in table view) */}
             {schedView === "table" && <>
               {(() => {
-                const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort();
+                const allDates = [...new Set((genResult.assignments || []).map((a: any) => a.date))].sort() as string[];
                 const dateForView = roomsViewDate || allDates[0] || "";
-                const allSessions = [...new Set((genResult.assignments || []).filter((a: any) => a.date === dateForView).map((a: any) => a.session_number))].sort();
+                const allSessions = [...new Set((genResult.assignments || []).filter((a: any) => a.date === dateForView).map((a: any) => a.session_number))].sort() as number[];
                 const sessionForView = allSessions.includes(roomsViewSession) ? roomsViewSession : (allSessions[0] || 1);
                 if (!roomsViewDate && dateForView) setRoomsViewDate(dateForView);
                 if (!allSessions.includes(roomsViewSession) && allSessions.length > 0) setRoomsViewSession(allSessions[0]);

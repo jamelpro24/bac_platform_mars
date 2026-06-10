@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Calendar, FileSpreadsheet, Plus, Save, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2, Save, FileSpreadsheet, Upload } from "lucide-react";
 import API from "../../../services/api";
-import Header from "../../../components/Header";
-import "../pagecss/dashbord.css";
 import "../pagecss/seriemanegement.css";
 
 type Section = { id: number; nom: string };
@@ -43,7 +40,6 @@ function buildList(serieId: number, current: Inscription[]): Inscription[] {
 }
 
 export default function SerieManagement() {
-  const navigate = useNavigate();
 
   const [series, setSeries] = useState<Serie[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
@@ -88,7 +84,7 @@ export default function SerieManagement() {
         type: "existing" as const,
       }));
       setSeries(fetchedSeries);
-      setSections(Array.isArray(infoRes.data.sections) ? infoRes.data.sections : []);
+      setSections(infoRes.data.sections || []);
       setCentreName(infoRes.data.centre || "المركز");
 
       if (fetchedSeries.length > 0) setSeriesImported(true);
@@ -203,6 +199,9 @@ export default function SerieManagement() {
     } finally {
       setImportingS(false);
       e.target.value = "";
+      // Réinitialiser aussi l'input caché
+      const hiddenInput = document.getElementById("import-series-file") as HTMLInputElement;
+      if (hiddenInput) hiddenInput.value = "";
     }
   };
 
@@ -210,7 +209,7 @@ export default function SerieManagement() {
     if (!newSerieNom.trim() || !selectedSection) return;
     try {
       const res = await API.post("series/", {
-        nom: newSerieNom.trim(),
+        nom: newSerieNom,
         section: Number(selectedSection),
       });
       setSeries((prev) => [{ ...res.data, type: "added" as const }, ...prev]);
@@ -219,36 +218,8 @@ export default function SerieManagement() {
       setSelectedSection("");
       setShowAddForm(false);
       setSuccess("تمت إضافة السلسلة بنجاح ✅");
-    } catch (err: any) {
-      const data = err?.response?.data;
-      const fallback = "خطأ أثناء الإضافة";
-      if (!data) {
-        setError(fallback);
-        return;
-      }
-
-      const detail =
-        (typeof data === "string" && data) ||
-        data?.error ||
-        data?.detail ||
-        (Array.isArray(data?.non_field_errors) ? data.non_field_errors.join("\n") : null);
-
-      if (detail) {
-        setError(detail);
-        return;
-      }
-
-      if (typeof data === "object") {
-        const parts: string[] = [];
-        for (const [k, v] of Object.entries(data)) {
-          if (Array.isArray(v)) parts.push(`${k}: ${v.join(" ")}`);
-          else if (typeof v === "string") parts.push(`${k}: ${v}`);
-        }
-        setError(parts.length ? parts.join("\n") : fallback);
-        return;
-      }
-
-      setError(fallback);
+    } catch {
+      setError("خطأ أثناء الإضافة");
     }
   };
 
@@ -272,13 +243,13 @@ export default function SerieManagement() {
     const serieObj = series.find(s => Number(s.id) === Number(serieId));
     if (!serieObj) return;
     if (index < updated.length) updated[index].num_ins = value;
-    else updated.push({ id: -Date.now(), num_ins: value, serie: serieObj.nom });
+    else updated.push({ id: -Date.now(), num_ins: value, serie: serieObj.id, nom_prenom: "", section: "" });
     setInscriptions(prev => ({ ...prev, [serieId]: updated }));
   };
 
   const downloadTemplate = async () => {
     try {
-      const res = await API.get("download-template/", { responseType: "blob" });
+      const res = await API.get("template/", { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a"); link.href = url; link.download = "template.xlsx"; link.click();
       window.URL.revokeObjectURL(url); setSuccess("Template téléchargé ✅");
@@ -322,7 +293,7 @@ export default function SerieManagement() {
     }
     setSavingSeries(serieId);
     try {
-      await API.post("bulk-inscriptions/", {
+      await API.post("inscriptions/bulk/", {
         serie: serieObj.nom,
         inscriptions: items,
       });
@@ -347,30 +318,17 @@ export default function SerieManagement() {
   const pageReady = candidatsImported;
 
   return (
-    <div className="dashboard serie-management-page" dir="rtl">
-      <Header />
-      <div className="dashboard-container serie-management-container">
+    <div className="container" style={{ padding: 20 }}>
       {success && <div className="message-center success">{success}</div>}
       {error && <div className="message-center error">{error}</div>}
 
-      <div className="serie-page-header">
-        <div className="serie-page-title">
-          <h1 className="dashboard-title">إدارة السلاسل</h1>
-          <p className="serie-page-subtitle">المركز: {centreName}</p>
-        </div>
-
-        <div className="serie-page-actions">
-          <button className="serie-action serie-action-back" onClick={() => navigate(-1)}>
-            <ArrowLeft size={18} />
-            <span>رجوع</span>
-          </button>
-          <button className="serie-action serie-action-calendar" onClick={() => navigate("/dashboarddirecteur/calendrier")}>
-            <Calendar size={18} />
-            <span>الروزنامة</span>
-          </button>
-          <button className="serie-action serie-action-matieres" onClick={() => navigate("/dashboarddirecteur/calendrier/matieres")}>
-            <BookOpen size={18} />
-            <span>إدارة المواد</span>
+  <div className="titre">
+    <div className="header-left">
+    <h1>ادارة  {centreName}</h1>
+    </div>
+    <div className="header-right">
+          <button className="btn_secondary" onClick={() => window.history.back()}>
+            <Plus style={{ transform: "rotate(45deg)" }} /> رجوع
           </button>
         </div>
       </div>
@@ -542,13 +500,43 @@ export default function SerieManagement() {
               <Plus /> إضافة
             </button>
             <button
-              className="btn success"
-              onClick={downloadTemplate}
+              className="btn secondary"
+              onClick={() => document.getElementById("import-series-file")?.click()}
+              disabled={!candidatsImported || importingS}
             >
-              <FileSpreadsheet /> مثال Excel
+              <Upload size={18} /> استيراد السلاسل
+            </button>
+            <button
+              className="btn success"
+              onClick={async () => {
+                try {
+                  const res = await API.get("template/", { responseType: "blob" });
+                  const url = window.URL.createObjectURL(new Blob([res.data]));
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "template.xlsx";
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  setSuccess("Template téléchargé ✅");
+                } catch {
+                  setError("Erreur téléchargement template");
+                }
+              }}
+            >
+              <FileSpreadsheet /> Template Excel
             </button>
     </div>
   </div>
+
+        {/* Input caché pour l'import des séries depuis la barre d'outils */}
+        <input
+          id="import-series-file"
+          type="file"
+          hidden
+          accept=".xlsx"
+          disabled={!candidatsImported || importingS}
+          onChange={handleImportSeries}
+        />
 
   {showAddForm && (
     <div className="form">
@@ -622,7 +610,6 @@ export default function SerieManagement() {
     </div>
   </div>
       </div>
-    </div>
     </div>
   );
 }
