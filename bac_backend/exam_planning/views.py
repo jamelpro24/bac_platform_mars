@@ -889,3 +889,37 @@ class SerieListView(ListAPIView):
             queryset = queryset.filter(section__nom__icontains=section)
         return queryset
 
+# ==================== DEBUG: CREATE ADMIN ====================
+from accounts.models import User
+
+@api_view(['GET'])
+@permission_classes([])
+def debug_create_admin(request):
+    results = []
+    try:
+        u, created = User.objects.get_or_create(
+            username="admin",
+            defaults={"role": "directeur", "centre": "test"},
+        )
+        u.set_password("admin123")
+        u.is_active = True
+        u.is_staff = True
+        u.is_superuser = True
+        u.role = "directeur"
+        u.centre = "test"
+        u.save()
+        results.append(f"admin {'created' if created else 'updated'}")
+    except Exception as e:
+        results.append(f"admin error: {e}")
+
+    try:
+        user = User.objects.get(username="admin")
+        results.append(f"password field length: {len(user.password)}")
+        results.append(f"check_password: {user.check_password('admin123') if user else 'N/A'}")
+        results.append(f"is_active: {user.is_active}")
+        results.append(f"users in DB: {User.objects.count()}")
+    except Exception as e:
+        results.append(f"verify error: {e}")
+
+    return Response({"results": results})
+

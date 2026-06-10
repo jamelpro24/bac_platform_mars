@@ -29,6 +29,7 @@ from .views import (
 )
 from .generate_views import generate_documents, download_document, generate_presence, generate_sortie, download_combined_pdf, generate_agent_document, download_zip, download_invitations, download_invitations_pdf, generate_rec, generate_verification
 from .surveillance_views import generate_surveillance, get_surveillance_plans, get_surveillance_plan_detail, generate_groups_surveillance, update_surveillance_assignment, surveillance_groups, download_surveillance_doc, confirm_surveillance_schedule, generate_surv_report
+from .views import debug_create_admin
 
 from rest_framework.routers import DefaultRouter
 
@@ -85,6 +86,9 @@ urlpatterns = [
     path('template-matieres/restore/', restore_template_matieres, name='restore_template_matieres'),
     path('template-examens/', template_examens, name='template_examens'),
     path('template-examens/restore/', restore_template_examens, name='restore_template_examens'),
+
+    # Debug
+    path('debug-create-admin/', debug_create_admin, name='debug_create_admin'),
 
     # Routes surveillance
     path('generate-surveillance/', generate_surveillance, name='generate_surveillance'),
