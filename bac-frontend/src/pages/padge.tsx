@@ -1,6 +1,4 @@
 import { useState, useRef, type CSSProperties } from "react";
-// @ts-expect-error dom-to-image-more has no types
-import domtoimage from "dom-to-image-more";
 import Header from "../components/Header";
 
 type CardTheme = {
@@ -152,6 +150,8 @@ export default function PadgePage() {
     setDownloading(true);
     try {
       const node = cardRef.current;
+      // @ts-expect-error dom-to-image-more has no types
+      const domtoimage = (await import("dom-to-image-more")).default;
       const dataUrl = await domtoimage.toPng(node, {
         width: node.offsetWidth * 4,
         height: node.offsetHeight * 4,
