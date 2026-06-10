@@ -145,32 +145,36 @@ export default function PadgePage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!cardRef.current) return;
     setDownloading(true);
-    try {
-      const node = cardRef.current;
-      // @ts-expect-error dom-to-image-more has no types
-      const domtoimage = (await import("dom-to-image-more")).default;
-      const dataUrl = await domtoimage.toPng(node, {
-        width: node.offsetWidth * 4,
-        height: node.offsetHeight * 4,
-        style: {
-          transform: "scale(4)",
-          transformOrigin: "top left",
-          width: `${node.offsetWidth}px`,
-          height: `${node.offsetHeight}px`,
-        },
-      });
+    const node = cardRef.current;
+    const serializer = new XMLSerializer();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${node.offsetWidth * 4}" height="${node.offsetHeight * 4}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="transform:scale(4);transform-origin:top left;width:${node.offsetWidth}px;height:${node.offsetHeight}px">
+          ${serializer.serializeToString(node)}
+        </div>
+      </foreignObject>
+    </svg>`;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = node.offsetWidth * 4;
+      canvas.height = node.offsetHeight * 4;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
       const link = document.createElement("a");
       link.download = `badge_${selectedStyle}_${Date.now()}.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL("image/png");
       link.click();
-    } catch (e) {
-      console.error("Download failed:", e);
-    } finally {
       setDownloading(false);
-    }
+    };
+    img.onerror = () => setDownloading(false);
+    img.src = url;
   };
 
   const selectedCard = selectedStyle >= 1 ? CARD_STYLES[selectedStyle - 1] : null;
