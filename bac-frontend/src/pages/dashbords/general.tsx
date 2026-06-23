@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import API from "../../services/api";
 import "./pagecss/general.css";
 import Header from "../../components/Header";
+import { useNavigate, useLocation } from "react-router-dom";
 
 type Section = {
   id: number;
@@ -39,7 +40,6 @@ const delegationsList = [
   "قفصة", "توزر", "قبلي"
 ];
 
-// ✅ Normalisation pour éviter les faux doublons (ال + و prefix + tri)
 const normalizeText = (text: string) => {
   const words = text.trim().normalize("NFC").split(/\s+/).map(w => {
     while (true) {
@@ -53,6 +53,9 @@ const normalizeText = (text: string) => {
 };
 
 export default function General() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/dashboardadmin") ? "/dashboardadmin" : "/dashboarddirecteur";
   const [data, setData] = useState<GeneralData>({
     centre: "",
     annee_scolaire: "",
@@ -68,7 +71,6 @@ export default function General() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ================= FETCH =================
   const fetchData = async () => {
     try {
       const response = await API.get("general/");
@@ -85,7 +87,6 @@ export default function General() {
     fetchData();
   }, []);
 
-  // ================= TOGGLE SECTION =================
   const isSectionActive = (nom: string) =>
     data.sections.some((s) => normalizeText(s.nom) === normalizeText(nom));
 
@@ -119,7 +120,6 @@ export default function General() {
     }
   };
 
-  // ================= SAVE =================
   const saveData = async () => {
     setSaving(true);
     setError("");
@@ -151,9 +151,20 @@ export default function General() {
       <div className="dashboard-container">
         <h1 className="dashboard-title">المعطيات العامة</h1>
 
+        {error && <p className="error-msg">{error}</p>}
+        {success && <p className="success-msg">{success}</p>}
+
+        <div className="nav-section">
+          <h2 className="section-title">الانتقال إلى</h2>
+          <div className="nav-buttons">
+            <button className="nav-btn" onClick={() => navigate(`${basePath}/calendrier/seriemanagement`)}>
+              إدارة السلاسل والقائمة الاسمية
+            </button>
+          </div>
+        </div>
+
         <div className="general-grid">
 
-          {/* CENTRE */}
           <div className="card">
             <h3>مركز الامتحان</h3>
             <input
@@ -163,7 +174,6 @@ export default function General() {
             />
           </div>
 
-          {/* NOM ADMIN */}
           <div className="card">
             <h3>رئيس مركز الامتحان</h3>
             <input
@@ -173,7 +183,6 @@ export default function General() {
             />
           </div>
 
-          {/* Année */}
           <div className="card">
             <h3>السنة الدراسية</h3>
             <input
@@ -183,7 +192,6 @@ export default function General() {
             />
           </div>
 
-          {/* Delegation */}
           <div className="card">
             <h3>الولاية</h3>
             <select
@@ -197,7 +205,6 @@ export default function General() {
             </select>
           </div>
 
-          {/* Candidats */}
           <div className="card">
             <h3>عدد المترشحين</h3>
             <input
@@ -207,7 +214,6 @@ export default function General() {
             />
           </div>
 
-          {/* Salles */}
           <div className="card">
             <h3>عدد القاعات</h3>
             <input
@@ -217,7 +223,6 @@ export default function General() {
             />
           </div>
 
-          {/* Sections */}
           <div className="card full">
             <h3>الشعب</h3>
             <p className="card-hint">انقر على الشعبة لإضافتها أو إزالتها من مركزك</p>
@@ -242,10 +247,7 @@ export default function General() {
 
         </div>
 
-        {/* Save */}
         <div className="save-section">
-          {error && <p className="error-msg">{error}</p>}
-          {success && <p className="success-msg">{success}</p>}
           <button onClick={saveData} disabled={saving} className="save-btn">
             {saving ? "جاري الحفظ..." : "حفظ البيانات"}
           </button>

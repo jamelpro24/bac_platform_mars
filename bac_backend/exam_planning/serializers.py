@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Section, Session, Salle, Matiere, Serie, MatiereSection, Examen, Inscription, Candidat, ExamenSalle, SurveillancePlan, SurveillanceAssignment
+from .models import Section, Session, Salle, Matiere, Serie, MatiereSection, Examen, Inscription, Candidat, ExamenSalle, SurveillancePlan, SurveillanceAssignment, ControleConfig
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -61,7 +61,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
     serie_nom = serializers.CharField(source='serie.nom', read_only=True)
     class Meta:
         model = Inscription
-        fields = ['id', 'num_ins', 'nom_prenom', 'cin', 'section', 'etablissement', 'serie', 'serie_nom']
+        fields = ['id', 'num_ins', 'nom_prenom', 'cin', 'section', 'etablissement', 'serie', 'serie_nom', 'resultat']
 
 class CandidatSerializer(serializers.ModelSerializer):
     class Meta:
@@ -81,3 +81,10 @@ class SurveillanceAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveillanceAssignment
         fields = '__all__'
+
+
+class ControleConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ControleConfig
+        fields = '__all__'
+        read_only_fields = ['user']

@@ -489,7 +489,7 @@ export default function PadgePage() {
                         zIndex: 1,
                       }}
                     >
-                      امتحان البكالوريا
+                      المدرسة الاعدادية ببومرداس
                     </div>
                   </div>
                 ) : (
@@ -532,7 +532,7 @@ export default function PadgePage() {
                         direction: "rtl",
                       }}
                     >
-                      معهد بومرداس
+                      المدرسة الاعدادية ببومرداس
                     </div>
 
                     {/* Divider */}

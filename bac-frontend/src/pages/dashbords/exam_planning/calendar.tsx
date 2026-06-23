@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus, Edit, Trash2, Calendar, Users, Save, Upload } from "lucide-react";
 import API from "../../../services/api";
 import Header from "../../../components/Header";
@@ -41,6 +41,8 @@ type Examen = {
 
 export default function ExamCalendar() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/dashboardadmin") ? "/dashboardadmin" : "/dashboarddirecteur";
   const [loading, setLoading] = useState(true);
   const [sectionKeyMap, setSectionKeyMap] = useState<Map<string, number[]>>(new Map());
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -365,13 +367,13 @@ export default function ExamCalendar() {
           <div className="action-buttons">
             <button
               className="add-session-btn"
-              onClick={() => navigate("/dashboarddirecteur/calendrier/seriemanagement")}
+              onClick={() => navigate(`${basePath}/general`)}
             >
-              <Plus size={16} /> إدارة السلاسل
+              <Plus size={16} /> المعطيات العامة والسلاسل
             </button>
             <button
               className="add-session-btn"
-              onClick={() => navigate("/dashboarddirecteur/calendrier/matieres")}
+              onClick={() => navigate(`${basePath}/calendrier/matieres`)}
             >
               <Plus size={16} /> إدارة المواد
             </button>

@@ -10,10 +10,11 @@ from rest_framework import status
 from .generate_views import generate_documents, download_document
 import pandas as pd
 
-from .models import MatiereSection, Section, Session, Salle, Matiere, Serie, Examen, Inscription, Candidat, TemplateMatiere, TemplateExamen, ExamenSalle
+from .models import MatiereSection, Section, Session, Salle, Matiere, Serie, Examen, Inscription, Candidat, TemplateMatiere, TemplateExamen, ExamenSalle, ControleConfig
 from .serializers import (
     MatiereSectionSerializer, SessionSerializer, SalleSerializer, MatiereSerializer,
-    SerieSerializer, ExamenSerializer, InscriptionSerializer, ExamenSalleSerializer
+    SerieSerializer, ExamenSerializer, InscriptionSerializer, ExamenSalleSerializer,
+    ControleConfigSerializer
 )
 import uuid
 import io
@@ -69,6 +70,16 @@ class MatiereViewSet(viewsets.ModelViewSet):
 class SerieViewSet(BaseDirectorViewSet):
     queryset = Serie.objects.all().select_related('section')
     serializer_class = SerieSerializer
+
+class ControleConfigViewSet(BaseDirectorViewSet):
+    queryset = ControleConfig.objects.all()
+    serializer_class = ControleConfigSerializer
+    def get_queryset(self):
+        qs = super().get_queryset()
+        session_id = self.request.query_params.get('session')
+        if session_id:
+            qs = qs.filter(session_id=session_id)
+        return qs
 
 class ExamenViewSet(BaseDirectorViewSet):
     queryset = Examen.objects.all()
@@ -413,6 +424,55 @@ def import_excel(request):
             return Response(response_data, status=status.HTTP_207_MULTI_STATUS)
         return Response(response_data, status=200)
 
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+# ==================== IMPORT RÉSULTATS ====================
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def import_resultats(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({"error": "لم يتم رفع أي ملف"}, status=400)
+    try:
+        import pandas as pd
+        xl = pd.read_excel(file, sheet_name=None, dtype=str)
+        total_updated = 0
+        not_found = []
+        resultat_map = {'admis': 'admis', 'controle': 'controle', 'refusé': 'refuse', 'refuse': 'refuse'}
+
+        for sheet_name, df in xl.items():
+            df.columns = [str(c).strip() for c in df.columns]
+            col_map = {}
+            for col in df.columns:
+                c = ' '.join(col.split())
+                if 'رقم المترشح' in c:
+                    col_map[col] = 'num_ins'
+                elif 'Résultat' in c or 'résultat' in c.lower() or 'resultat' in c.lower() or 'النتيجة' in c:
+                    col_map[col] = 'resultat'
+            df = df.rename(columns=col_map)
+            if 'num_ins' not in df.columns or 'resultat' not in df.columns:
+                continue
+            for _, row in df.iterrows():
+                num_ins = str(row.get('num_ins') or '').strip()
+                resultat_raw = str(row.get('resultat') or '').strip().lower()
+                if not num_ins or num_ins == 'nan' or not resultat_raw or resultat_raw == 'nan':
+                    continue
+                resultat = resultat_map.get(resultat_raw, '')
+                if not resultat:
+                    continue
+                inscriptions = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
+                if not inscriptions.exists():
+                    not_found.append(num_ins)
+                    continue
+                updated = inscriptions.update(resultat=resultat)
+                total_updated += updated
+
+        return Response({
+            "message": f"تم تحديث {total_updated} نتيجة",
+            "updated": total_updated,
+            "not_found": not_found[:20],
+        }, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 

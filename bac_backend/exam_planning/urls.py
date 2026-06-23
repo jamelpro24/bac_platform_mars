@@ -8,6 +8,7 @@ from .views import (
     ExamenSalleViewSet,
     InscriptionViewSet,
     MatiereSectionViewSet,
+    ControleConfigViewSet,
     SerieListView,
     general_info,
     add_section,
@@ -20,6 +21,7 @@ from .views import (
     import_candidats,
     candidats_count,
     import_excel,
+    import_resultats,
     download_template,
     matieres_by_section,
     template_matieres,
@@ -42,6 +44,7 @@ router.register(r'examens', ExamenViewSet)
 router.register(r'inscriptions', InscriptionViewSet)
 router.register(r'matieres-sections', MatiereSectionViewSet)
 router.register(r'examen-salles', ExamenSalleViewSet)
+router.register(r'controle-config', ControleConfigViewSet)
 
 urlpatterns = [
     # Routes router
@@ -61,6 +64,7 @@ urlpatterns = [
     path('import-candidats/', import_candidats, name='import_candidats'),
     path('candidats-count/', candidats_count, name='candidats_count'),
     path('import-excel/', import_excel, name='import_excel'),
+    path('import-resultats/', import_resultats, name='import_resultats'),
     path('import-examens/', import_examens, name='import_examens'),
     path('import-matieres/', import_matieres, name='import_matieres'),
     path('download-template/', download_template, name='download_template'),
