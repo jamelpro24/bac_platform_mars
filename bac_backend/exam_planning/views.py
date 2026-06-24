@@ -436,7 +436,6 @@ def import_resultats(request):
         return Response({"error": "لم يتم رفع أي ملف"}, status=400)
 
     resultats = {}
-    not_found = []
     resultat_map = {'admis': 'admis', 'controle': 'controle', 'refusé': 'refuse', 'refuse': 'refuse'}
 
     xl = pd.read_excel(file, sheet_name=None, dtype=str)
@@ -460,22 +459,12 @@ def import_resultats(request):
             resultat = resultat_map.get(resultat_raw, '')
             if not resultat:
                 continue
-            # Try to store in DB (if migration applied), but also collect for response
-            qs = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
-            if not qs.exists():
-                not_found.append(num_ins)
-                continue
-            try:
-                qs.update(resultat=resultat)
-            except Exception:
-                pass  # Column might not exist yet
             resultats[num_ins] = resultat
 
     return Response({
         "message": f"تمت معالجة {len(resultats)} نتيجة",
         "total": len(resultats),
         "controle": [num for num, r in resultats.items() if r == 'controle'],
-        "not_found": not_found[:20],
     })
 
 # ==================== GENERAL INFO ====================

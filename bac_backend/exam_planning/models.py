@@ -103,18 +103,12 @@ class Candidat(models.Model):
         return f"{self.num_ins} — {self.nom_prenom}"
 # ==================== INSCRIPTION ====================
 class Inscription(models.Model):
-    RESULTAT_CHOICES = [
-        ('admis', 'مقبول'),
-        ('controle', 'مراقبة'),
-        ('refuse', 'مرفوض'),
-    ]
     serie      = models.ForeignKey(Serie, on_delete=models.CASCADE, related_name='inscriptions')
     num_ins    = models.CharField(max_length=20)
     nom_prenom = models.CharField(max_length=255, verbose_name="الإسم و اللقب")
     cin        = models.CharField(max_length=20, blank=True, null=True, verbose_name="رقم بطاقة التعريف الوطنية")
     section     = models.CharField(max_length=100, verbose_name="الشعبة")
     etablissement = models.CharField(max_length=255, blank=True, default='', verbose_name="المعهد")
-    resultat   = models.CharField(max_length=20, choices=RESULTAT_CHOICES, blank=True, default='', verbose_name="النتيجة")
 
     class Meta:
         unique_together = ('serie', 'num_ins')
