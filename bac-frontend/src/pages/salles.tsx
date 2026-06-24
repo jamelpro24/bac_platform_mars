@@ -273,7 +273,7 @@ export default function DocumentsPage() {
       } else {
         const sr = getSerie(serieId);
         const sectionNom = sr ? getSection(sr.section) : "?";
-        const serieIns = getInscriptionsBySerie(serieId).filter(i => !isControleSession || i.resultat === 'controle');
+        const serieIns = getInscriptionsBySerie(serieId).filter(i => !isControleSession || !i.resultat || i.resultat === 'controle');
         const ins = serieIns.map(i => ({
           num_ins: i.num_ins,
           nom_prenom: i.nom_prenom,
@@ -763,7 +763,7 @@ export default function DocumentsPage() {
   )];
   const availableForSession = inscriptions.filter(ins => {
     if (!sessionExamenSections.map(sid => getSection(sid)).includes(ins.section)) return false;
-    if (isControleSession && ins.resultat !== 'controle') return false;
+    if (isControleSession && ins.resultat && ins.resultat !== 'controle') return false;
     return true;
   });
   const groupedAvailableIns: Record<number, Inscription[]> = {};

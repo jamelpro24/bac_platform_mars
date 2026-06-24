@@ -59,9 +59,17 @@ class ExamenSalleSerializer(serializers.ModelSerializer):
 
 class InscriptionSerializer(serializers.ModelSerializer):
     serie_nom = serializers.CharField(source='serie.nom', read_only=True)
+    resultat = serializers.SerializerMethodField()
+
     class Meta:
         model = Inscription
         fields = ['id', 'num_ins', 'nom_prenom', 'cin', 'section', 'etablissement', 'serie', 'serie_nom', 'resultat']
+
+    def get_resultat(self, obj):
+        try:
+            return obj.resultat or ''
+        except Exception:
+            return ''
 
 class CandidatSerializer(serializers.ModelSerializer):
     class Meta:
