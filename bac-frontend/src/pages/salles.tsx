@@ -818,18 +818,6 @@ export default function DocumentsPage() {
               ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Loader size={15} style={{ animation: "spin 1s linear infinite" }} /> جاري الإنشاء...</span>
               : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><FileText size={15} /> بطاقات التثبت</span>}
           </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handleImportResults} />
-          <button onClick={() => fileInputRef.current?.click()} disabled={importingResults}
-            style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700, borderRadius: 12, border: "none", cursor: "pointer", background: importingResults ? "#9aa0a6" : "#7c3aed", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}>
-            {importingResults
-              ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Loader size={15} style={{ animation: "spin 1s linear infinite" }} /> جاري الاستيراد...</span>
-              : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> استيراد النتائج</span>}
-          </button>
-          {importResultMsg && (
-            <div style={{ width: "100%", textAlign: "center", color: importResultMsg.includes("خطأ") ? "#dc2626" : "#0f6e56", fontSize: 13, fontWeight: 600 }}>
-              {importResultMsg}
-            </div>
-          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "1.25rem", alignItems: "start" }}>
@@ -870,6 +858,22 @@ export default function DocumentsPage() {
                   <span style={c.badge("#92400e", "#fef3c7")}>{sessionRooms.length} قاعة</span>
                 </div>
                 <div style={c.pad}>
+                  {/* Import results */}
+                  <div style={{ marginBottom: "1rem", textAlign: "center" }}>
+                    <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handleImportResults} />
+                    <button onClick={() => fileInputRef.current?.click()} disabled={importingResults}
+                      style={{ padding: "10px 28px", fontSize: 14, fontWeight: 700, borderRadius: 12, border: "none", cursor: "pointer", background: importingResults ? "#9aa0a6" : "#7c3aed", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      {importingResults
+                        ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Loader size={15} style={{ animation: "spin 1s linear infinite" }} /> جاري الاستيراد...</span>
+                        : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> استيراد النتائج</span>}
+                    </button>
+                    {importResultMsg && (
+                      <div style={{ marginTop: 6, color: importResultMsg.includes("خطأ") ? "#dc2626" : "#0f6e56", fontSize: 13, fontWeight: 600 }}>
+                        {importResultMsg}
+                      </div>
+                    )}
+                  </div>
+
                   {sessionRooms.length === 0 && (
                     <p style={{ color: "#9aa0a6", fontSize: 13, textAlign: "center", padding: "1rem 0" }}>
                       لم يتم إنشاء قاعات بعد. أضف القاعات واختر المترشحين لكل قاعة.
@@ -878,11 +882,12 @@ export default function DocumentsPage() {
                   {sessionRooms.map(r => {
                     const usedCount = r.candidats.length;
                     const capacity = r.layout === "15" ? 15 : 18;
-                    const overCapacity = usedCount > capacity;
+                    const overCapacity = usedCount >= capacity;
+                    const takenControleNums = new Set(sessionRooms.flatMap(x => x.candidats.map(c => c.num_ins)));
                     return (
                       <div key={r.uid} style={{ marginBottom: 10, background: "#fafafa", borderRadius: 12, padding: "0.75rem", border: overCapacity ? "2px solid #ef4444" : "1px solid #e8eaed" }}>
+                        {/* Top row: room, layout, remove */}
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-                          {/* Room selector */}
                           <div style={{ minWidth: 110 }}>
                             <div style={{ fontSize: 10, color: "#5f6368", marginBottom: 2 }}>القاعة</div>
                             <select value={r.salle_id || ""} onChange={e => changeSessionRoomSalle(r.uid, parseInt(e.target.value))}
@@ -893,7 +898,6 @@ export default function DocumentsPage() {
                               ))}
                             </select>
                           </div>
-                          {/* Layout */}
                           <div style={{ minWidth: 80 }}>
                             <div style={{ fontSize: 10, color: "#5f6368", marginBottom: 2 }}>التصميم</div>
                             <select value={r.layout} onChange={e => changeSessionRoomLayout(r.uid, e.target.value as "15" | "18")}
@@ -902,98 +906,96 @@ export default function DocumentsPage() {
                               <option value="18">18 مقعد</option>
                             </select>
                           </div>
-                          {/* Series checkboxes */}
-                          <div style={{ flex: 1, minWidth: 200 }}>
-                            <div style={{ fontSize: 10, color: "#5f6368", marginBottom: 2 }}>السلاسل (اختر لإضافة كل المترشحين)</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
-                              {visibleSeries.filter(sr => sessionExamenSections.includes(sr.section)).map(sr => {
-                                const count = inscriptions.filter(i => i.serie === sr.id).length;
-                                const isChecked = r.serie_ids.includes(sr.id);
-                                return (
-                                  <label key={sr.id} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, cursor: "pointer", userSelect: "none" }}>
-                                    <input type="checkbox" checked={isChecked}
-                                      onChange={() => toggleSessionRoomSerie(r.uid, sr.id)}
-                                      style={{ accentColor: "#1a56db" }} />
-                                    {sr.nom} ({count})
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          {/* Remove */}
                           <button onClick={() => removeSessionRoom(r.uid)}
                             style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", padding: "14px 4px 0" }}>
                             <Trash2 size={14} />
                           </button>
                         </div>
-                        {/* Candidate list */}
-                        <div style={{ marginTop: 8, borderTop: "1px solid #e8eaed", paddingTop: 8 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>
-                              المترشحون: {usedCount} / {capacity}
-                              {overCapacity && <span style={{ color: "#ef4444", marginRight: 8 }}>! تجاوز السعة</span>}
-                            </div>
-                            <div style={{ fontSize: 10, color: "#5f6368" }}>
-                              {r.serie_ids.length} سلسلة
+
+                        {/* Counter */}
+                        <div style={{ marginTop: 8, marginBottom: 6, fontSize: 11, fontWeight: 600, color: "#374151" }}>
+                          المترشحون: {usedCount} / {capacity}
+                          {overCapacity && <span style={{ color: "#ef4444", marginRight: 8 }}>! تجاوز السعة</span>}
+                        </div>
+
+                        {/* Selected candidates (green cards) */}
+                        {r.candidats.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 8, background: "#f0fdf4", borderRadius: 12 }}>
+                              {r.candidats.map(c => {
+                                const sr = series.find(s => s.id === c.serie_id);
+                                return (
+                                  <div key={c.num_ins}
+                                    style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500, borderRadius: 8, border: "2px solid #bbf7d0", background: "#fff", color: "#15803d", fontFamily: "inherit", textAlign: "right", display: "flex", alignItems: "center", gap: 6 }}>
+                                    <button onClick={() => removeCandidatFromSessionRoom(r.uid, c.num_ins)}
+                                      style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", padding: 0, fontSize: 14, fontWeight: 700, lineHeight: 1 }}>×</button>
+                                    <div>
+                                      <div style={{ fontWeight: 700 }}>{c.num_ins}</div>
+                                      <div style={{ fontSize: 10, opacity: 0.7 }}>{c.nom_prenom}</div>
+                                      <div style={{ fontSize: 9, color: "#1a56db" }}>{sr?.nom || c.serie_nom}</div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          {r.candidats.length > 0 ? (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {r.candidats.map(c => (
-                                <div key={c.num_ins} style={{ display: "flex", alignItems: "center", gap: 3, background: "#e8f0fe", borderRadius: 6, padding: "2px 6px 2px 2px", fontSize: 11 }}>
-                                  <button onClick={() => removeCandidatFromSessionRoom(r.uid, c.num_ins)}
-                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", padding: 0, display: "flex", fontSize: 13, lineHeight: 1 }}>
-                                    ×
-                                  </button>
-                                  <span>{c.nom_prenom}</span>
-                                  <span style={{ color: "#5f6368", fontSize: 10 }}>({c.serie_nom})</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p style={{ fontSize: 11, color: "#9aa0a6", margin: 0 }}>اختر السلاسل أو أضف المترشحين يدوياً</p>
-                          )}
-                        </div>
-                        {/* Candidate picker */}
+                        )}
+
+                        {/* Available candidates as clickable cards */}
                         {r.salle_id && (
-                          <details style={{ marginTop: 6, fontSize: 11 }}>
-                            <summary style={{ cursor: "pointer", color: "#1a56db", fontWeight: 600 }}>إضافة مترشحين يدوياً</summary>
-                            <div style={{ maxHeight: 200, overflowY: "auto", marginTop: 6, border: "1px solid #e8eaed", borderRadius: 8, padding: 6 }}>
-                              {Object.entries(groupedAvailableIns).map(([serieIdStr, insList]) => {
-                                const sid = parseInt(serieIdStr);
-                                const sr = getSerie(sid);
-                                const takenControleNums = new Set(sessionRooms.flatMap(x => x.candidats.map(c => c.num_ins)));
-                                const available = insList.filter(i => !takenControleNums.has(i.num_ins));
-                                if (available.length === 0) return null;
-                                return (
-                                  <div key={sid} style={{ marginBottom: 4 }}>
-                                    <div style={{ fontWeight: 600, color: "#374151", marginBottom: 2 }}>{sr?.nom}:</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                                      {available.slice(0, 20).map(i => (
-                                        <button key={i.num_ins} onClick={() => {
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 8px" }}>
+                              اختر المترشحين {overCapacity && <span style={{ color: "#dc2626", fontSize: 11 }}>(القاعة ممتلئة)</span>}
+                            </div>
+                            {(() => {
+                              const allAvailable = Object.values(groupedAvailableIns).flat().filter(i => !takenControleNums.has(i.num_ins));
+                              if (allAvailable.length === 0) {
+                                return <p style={{ color: "#9aa0a6", fontSize: 12 }}>جميع المترشحين تم اختيارهم</p>;
+                              }
+                              return (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 300, overflowY: "auto", padding: 10, background: "#f8f9fa", borderRadius: 12 }}>
+                                  {allAvailable.map(i => {
+                                    const sr = getSerie(i.serie);
+                                    const sectionName = getSection(i.section);
+                                    const disabled = overCapacity;
+                                    return (
+                                      <button key={i.num_ins}
+                                        onClick={() => {
+                                          if (disabled) return;
                                           const c: CandidatSelected = {
                                             num_ins: i.num_ins,
                                             nom_prenom: i.nom_prenom,
                                             cin: i.cin,
                                             section: String(i.section),
-                                            section_nom: getSection(i.section),
+                                            section_nom: sectionName,
                                             serie_id: i.serie,
                                             serie_nom: sr?.nom || "?",
                                             etablissement: i.etablissement,
                                           };
                                           addCandidatToSessionRoom(r.uid, c);
                                         }}
-                                          style={{ background: "#f1f3f4", border: "1px solid #d1d5db", borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>
-                                          + {i.nom_prenom}
-                                        </button>
-                                      ))}
-                                      {available.length > 20 && <span style={{ color: "#9aa0a6", fontSize: 10, padding: "2px 4px" }}>+{available.length - 20} آخرون</span>}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </details>
+                                        disabled={disabled}
+                                        style={{
+                                          padding: "6px 12px", fontSize: 11, fontWeight: 500, borderRadius: 8,
+                                          border: "2px solid #e8eaed",
+                                          background: disabled ? "#f5f5f5" : "#fff",
+                                          color: disabled ? "#c0c4cc" : "#64748b",
+                                          cursor: disabled ? "not-allowed" : "pointer",
+                                          fontFamily: "inherit",
+                                          textAlign: "right",
+                                          minWidth: 120,
+                                          opacity: disabled ? 0.5 : 1,
+                                        }}>
+                                        <div style={{ fontWeight: 700 }}>{i.num_ins}</div>
+                                        <div style={{ fontSize: 10, opacity: 0.7 }}>{i.nom_prenom}</div>
+                                        {sr && <div style={{ fontSize: 9, color: "#1a56db" }}>{sr.nom}</div>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         )}
                       </div>
                     );
