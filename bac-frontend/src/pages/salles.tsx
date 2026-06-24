@@ -298,7 +298,10 @@ export default function DocumentsPage() {
       } else {
         const sr = getSerie(serieId);
         const sectionNom = sr ? getSection(sr.section) : "?";
-        const serieIns = getInscriptionsBySerie(serieId).filter(i => !isControleSession || isControle(i));
+        const takenControleNums = new Set(prev.flatMap(p => p.candidats.map(c => c.num_ins)));
+        const serieIns = getInscriptionsBySerie(serieId).filter(i =>
+          (!isControleSession || isControle(i)) && !takenControleNums.has(i.num_ins)
+        );
         const ins = serieIns.map(i => ({
           num_ins: i.num_ins,
           nom_prenom: i.nom_prenom,
@@ -959,7 +962,8 @@ export default function DocumentsPage() {
                               {Object.entries(groupedAvailableIns).map(([serieIdStr, insList]) => {
                                 const sid = parseInt(serieIdStr);
                                 const sr = getSerie(sid);
-                                const available = insList.filter(i => !r.candidats.some(c => c.num_ins === i.num_ins));
+                                const takenControleNums = new Set(sessionRooms.flatMap(x => x.candidats.map(c => c.num_ins)));
+                                const available = insList.filter(i => !takenControleNums.has(i.num_ins));
                                 if (available.length === 0) return null;
                                 return (
                                   <div key={sid} style={{ marginBottom: 4 }}>
