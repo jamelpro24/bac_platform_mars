@@ -435,38 +435,48 @@ def import_resultats(request):
     if not file:
         return Response({"error": "لم يتم رفع أي ملف"}, status=400)
     try:
-        import pandas as pd
-        xl = pd.read_excel(file, sheet_name=None, dtype=str)
+        import openpyxl
+        wb = openpyxl.load_workbook(file)
         total_updated = 0
         not_found = []
-        resultat_map = {'admis': 'admis', 'controle': 'controle', 'refusé': 'refuse', 'refuse': 'refuse'}
 
-        for sheet_name, df in xl.items():
-            df.columns = [str(c).strip() for c in df.columns]
-            col_map = {}
-            for col in df.columns:
-                c = ' '.join(col.split())
-                if 'رقم المترشح' in c:
-                    col_map[col] = 'num_ins'
-                elif 'Résultat' in c or 'résultat' in c.lower() or 'resultat' in c.lower() or 'النتيجة' in c:
-                    col_map[col] = 'resultat'
-            df = df.rename(columns=col_map)
-            if 'num_ins' not in df.columns or 'resultat' not in df.columns:
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+            if not header:
                 continue
-            for _, row in df.iterrows():
-                num_ins = str(row.get('num_ins') or '').strip()
-                resultat_raw = str(row.get('resultat') or '').strip().lower()
-                if not num_ins or num_ins == 'nan' or not resultat_raw or resultat_raw == 'nan':
+
+            # Find column indices
+            num_ins_idx = resultat_idx = None
+            for idx, val in enumerate(header):
+                if val is None:
+                    continue
+                col_str = str(val).strip()
+                col_norm = ' '.join(col_str.split())
+                if 'رقم المترشح' in col_norm:
+                    num_ins_idx = idx
+                elif 'Résultat' in col_norm or 'résultat' in col_norm.lower() or 'resultat' in col_norm.lower() or 'النتيجة' in col_norm:
+                    resultat_idx = idx
+
+            if num_ins_idx is None or resultat_idx is None:
+                continue
+
+            resultat_map = {'admis': 'admis', 'controle': 'controle', 'refusé': 'refuse', 'refuse': 'refuse'}
+
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                num_ins = str(row[num_ins_idx] or '').strip() if num_ins_idx < len(row) else ''
+                resultat_raw = str(row[resultat_idx] or '').strip().lower() if resultat_idx < len(row) else ''
+                if not num_ins or not resultat_raw:
                     continue
                 resultat = resultat_map.get(resultat_raw, '')
                 if not resultat:
                     continue
-                inscriptions = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
-                if not inscriptions.exists():
+                qs = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
+                if not qs.exists():
                     not_found.append(num_ins)
                     continue
-                updated = inscriptions.update(resultat=resultat)
-                total_updated += updated
+                qs.update(resultat=resultat)
+                total_updated += 1
 
         return Response({
             "message": f"تم تحديث {total_updated} نتيجة",
