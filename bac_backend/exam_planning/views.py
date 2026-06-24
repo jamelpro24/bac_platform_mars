@@ -436,9 +436,21 @@ def import_resultats(request):
         return Response({"error": "لم يتم رفع أي ملف"}, status=400)
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(file)
+        import tempfile
+        import os
+        import traceback
+
+        # Save to temp file to avoid any BytesIO compatibility issues
+        suffix = os.path.splitext(str(file.name))[1] or '.xlsx'
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            for chunk in file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        wb = openpyxl.load_workbook(tmp_path)
         total_updated = 0
         not_found = []
+        errors = []
 
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
@@ -446,7 +458,6 @@ def import_resultats(request):
             if not header:
                 continue
 
-            # Find column indices
             num_ins_idx = resultat_idx = None
             for idx, val in enumerate(header):
                 if val is None:
@@ -464,27 +475,34 @@ def import_resultats(request):
             resultat_map = {'admis': 'admis', 'controle': 'controle', 'refusé': 'refuse', 'refuse': 'refuse'}
 
             for row in ws.iter_rows(min_row=2, values_only=True):
-                num_ins = str(row[num_ins_idx] or '').strip() if num_ins_idx < len(row) else ''
-                resultat_raw = str(row[resultat_idx] or '').strip().lower() if resultat_idx < len(row) else ''
-                if not num_ins or not resultat_raw:
-                    continue
-                resultat = resultat_map.get(resultat_raw, '')
-                if not resultat:
-                    continue
-                qs = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
-                if not qs.exists():
-                    not_found.append(num_ins)
-                    continue
-                qs.update(resultat=resultat)
-                total_updated += 1
+                try:
+                    num_ins = str(row[num_ins_idx] or '').strip() if num_ins_idx < len(row) else ''
+                    resultat_raw = str(row[resultat_idx] or '').strip().lower() if resultat_idx < len(row) else ''
+                    if not num_ins or not resultat_raw:
+                        continue
+                    resultat = resultat_map.get(resultat_raw, '')
+                    if not resultat:
+                        continue
+                    qs = Inscription.objects.filter(serie__user=request.user, num_ins=num_ins)
+                    if not qs.exists():
+                        not_found.append(num_ins)
+                        continue
+                    qs.update(resultat=resultat)
+                    total_updated += 1
+                except Exception as row_err:
+                    errors.append(f"خطأ في الصف: {row_err}")
+
+        os.unlink(tmp_path)
 
         return Response({
             "message": f"تم تحديث {total_updated} نتيجة",
             "updated": total_updated,
             "not_found": not_found[:20],
+            "errors": errors[:10],
         }, status=200)
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
+        tb = traceback.format_exc()
+        return Response({"error": str(e), "traceback": tb}, status=500)
 
 # ==================== GENERAL INFO ====================
 @api_view(['GET', 'PUT'])
