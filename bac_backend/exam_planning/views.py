@@ -436,18 +436,15 @@ def import_resultats(request):
         return Response({"error": "لم يتم رفع أي ملف"}, status=400)
     try:
         import openpyxl
-        import tempfile
-        import os
-        import traceback
+        import io
 
-        # Save to temp file to avoid any BytesIO compatibility issues
-        suffix = os.path.splitext(str(file.name))[1] or '.xlsx'
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            for chunk in file.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
+        # Read the uploaded file content into a BytesIO buffer
+        buf = io.BytesIO()
+        for chunk in file.chunks():
+            buf.write(chunk)
+        buf.seek(0)
 
-        wb = openpyxl.load_workbook(tmp_path)
+        wb = openpyxl.load_workbook(buf)
         total_updated = 0
         not_found = []
         errors = []
@@ -490,9 +487,7 @@ def import_resultats(request):
                     qs.update(resultat=resultat)
                     total_updated += 1
                 except Exception as row_err:
-                    errors.append(f"خطأ في الصف: {row_err}")
-
-        os.unlink(tmp_path)
+                    errors.append(str(row_err))
 
         return Response({
             "message": f"تم تحديث {total_updated} نتيجة",
@@ -501,8 +496,9 @@ def import_resultats(request):
             "errors": errors[:10],
         }, status=200)
     except Exception as e:
+        import traceback
         tb = traceback.format_exc()
-        return Response({"error": str(e), "traceback": tb}, status=500)
+        return Response({"error": f"{type(e).__name__}: {e}", "traceback": tb}, status=500)
 
 # ==================== GENERAL INFO ====================
 @api_view(['GET', 'PUT'])

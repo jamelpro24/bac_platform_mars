@@ -170,7 +170,13 @@ export default function DocumentsPage() {
       const insRes = await API.get("inscriptions/");
       setInscriptions(insRes.data);
     } catch (err: any) {
-      setImportResultMsg(err?.response?.data?.error || "خطأ في استيراد النتائج");
+      const msg = err?.response?.data?.error
+        || err?.response?.data?.detail
+        || (typeof err?.response?.data === 'string' ? err.response.data : '')
+        || err?.message
+        || "خطأ في استيراد النتائج";
+      setImportResultMsg(msg);
+      console.error("Import error details:", err?.response?.data || err);
     }
     setImportingResults(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
