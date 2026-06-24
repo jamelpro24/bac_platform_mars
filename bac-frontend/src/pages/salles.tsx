@@ -165,8 +165,11 @@ export default function DocumentsPage() {
       const form = new FormData();
       form.append("file", file);
       const res = await API.post("import-resultats/", form);
+      const newControleList: string[] = res.data.controle || [];
+      localStorage.setItem("controle_list", JSON.stringify(newControleList));
+      setControleList(newControleList);
       setImportResultMsg(res.data.message || "تم الاستيراد");
-      // Re-fetch inscriptions to get updated resultat field
+      // Re-fetch inscriptions
       const insRes = await API.get("inscriptions/");
       setInscriptions(insRes.data);
     } catch (err: any) {
@@ -180,6 +183,22 @@ export default function DocumentsPage() {
     }
     setImportingResults(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Load controle list from localStorage on mount
+  const getControleList = (): string[] => {
+    try { return JSON.parse(localStorage.getItem("controle_list") || "[]"); }
+    catch { return []; }
+  };
+  const [controleList, setControleList] = useState<string[]>(getControleList);
+
+  const isControle = (ins: Inscription): boolean => {
+    // Check localStorage first (client-side import)
+    if (controleList.length > 0) return controleList.includes(ins.num_ins);
+    // Fallback: check resultat from API (if DB column exists)
+    if (ins.resultat) return ins.resultat === 'controle';
+    // No data yet - show all
+    return true;
   };
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
@@ -279,7 +298,7 @@ export default function DocumentsPage() {
       } else {
         const sr = getSerie(serieId);
         const sectionNom = sr ? getSection(sr.section) : "?";
-        const serieIns = getInscriptionsBySerie(serieId).filter(i => !isControleSession || !i.resultat || i.resultat === 'controle');
+        const serieIns = getInscriptionsBySerie(serieId).filter(i => !isControleSession || isControle(i));
         const ins = serieIns.map(i => ({
           num_ins: i.num_ins,
           nom_prenom: i.nom_prenom,
@@ -769,7 +788,7 @@ export default function DocumentsPage() {
   )];
   const availableForSession = inscriptions.filter(ins => {
     if (!sessionExamenSections.map(sid => getSection(sid)).includes(ins.section)) return false;
-    if (isControleSession && ins.resultat && ins.resultat !== 'controle') return false;
+    if (isControleSession && !isControle(ins)) return false;
     return true;
   });
   const groupedAvailableIns: Record<number, Inscription[]> = {};
