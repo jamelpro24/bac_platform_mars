@@ -1264,8 +1264,8 @@ export default function DocumentsPage() {
                       <div style={{ marginBottom: "1.25rem" }}>
                         {(() => {
                           if (isControleSession) {
-                            return selectedTimeSlot ? (
-                              <div key={selectedTimeSlot} style={{ marginBottom: 12 }}>
+                            return (
+                              <div style={{ marginBottom: 12 }}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                                 {sessionRooms.filter(r => r.salle_id).map(r => {
                                   const isSelected = selectedRoomIds.has(r.salle_id!);
@@ -1284,7 +1284,7 @@ export default function DocumentsPage() {
                                 })}
                                 </div>
                               </div>
-                            ) : null;
+                            );
                           } else {
                             const groups: Record<string, DayAssignment[]> = {};
                             dayAssignments.forEach(a => {
