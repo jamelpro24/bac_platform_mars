@@ -25,6 +25,7 @@ export default function Sidebar({ open }: SidebarProps) {
     { to: `${basePath}/general`, label: "المعطيات العامة", icon: <Building size={20} /> },
      { to: `${basePath}/calendrier`, label: "رزنامة الامتحانات", icon: <ClipboardList size={20} /> },
     { to: `${basePath}/salles`, label: "تصميم القاعات", icon: <School size={20} /> },
+    { to: `${basePath}/salles/controle`, label: "قاعات التحكم", icon: <School size={20} /> },
     { to: `${basePath}/profs`, label: "الأساتذة", icon: <Users size={20} /> },
    
     { to: `${basePath}/examens`, label: "الامتحانات", icon: <Calendar size={20} /> },

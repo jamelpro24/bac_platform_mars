@@ -12,8 +12,6 @@ type Serie   = { id: number; nom: string; section: number; section_nom?: string;
 type Jour = { date: string; label: string };
 type Session = { id: number; nom: string; jours: Jour[] };
 type MatiereSection = { id: number; matiere: number; section: number; heures: number; type: string; matiere_nom?: string; section_nom?: string };
-type Inscription = { id: number; num_ins: string; nom_prenom: string; cin?: string; section: string; serie: number; etablissement?: string; resultat?: string };
-
 type Examen = {
   id: number;
   date: string;
@@ -22,17 +20,6 @@ type Examen = {
   matiere: number;
   section: number;
   session: number;
-};
-
-type CandidatSelected = {
-  num_ins: string;
-  nom_prenom: string;
-  cin?: string;
-  section: string;
-  section_nom: string;
-  serie_id: number;
-  serie_nom: string;
-  etablissement?: string;
 };
 
 type DayAssignment = {
@@ -48,15 +35,6 @@ type DayAssignment = {
   section_id?: number;
   section_nom?: string;
   layout?: "15" | "18";
-};
-
-type ControleRoom = {
-  uid: string;
-  salle_id: number | null;
-  salle_numero?: number;
-  serie_ids: number[];
-  layout: "15" | "18";
-  candidats: CandidatSelected[];
 };
 
 type GeneratedDoc = {
@@ -96,23 +74,15 @@ export default function DocumentsPage() {
 
   const [generating, setGenerating] = useState(false);
   const [verifGenerating, setVerifGenerating] = useState(false);
-  const [importingResults, setImportingResults] = useState(false);
-  const [importResultMsg, setImportResultMsg] = useState("");
   const [genError,   setGenError]   = useState("");
   const [dlError,    setDlError]    = useState("");
   const [docs,       setDocs]       = useState<GeneratedDoc[]>([]);
   const [showModal,  setShowModal]  = useState(false);
   const [presenceDocs, setPresenceDocs] = useState<GeneratedDoc[]>([]);
   const [verifDocs, setVerifDocs] = useState<GeneratedDoc[]>([]);
-  const [recDocs,   setRecDocs]   = useState<GeneratedDoc[]>([]);
 
-  const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<Set<number>>(new Set());
-  const [sessionRooms, setSessionRooms] = useState<ControleRoom[]>([]);
-  const [savingSessionRooms, setSavingSessionRooms] = useState(false);
-  const [openCandidatePicker, setOpenCandidatePicker] = useState<Set<string>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
-  const [showRoomSetup, setShowRoomSetup] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 15000);
@@ -126,7 +96,6 @@ export default function DocumentsPage() {
           API.get("series/"),
           API.get("sessions/"),
           API.get("matieres-sections/"),
-          API.get("inscriptions/"),
         ]);
         if (results[0].status === "fulfilled") setExamens(results[0].value.data);
         if (results[1].status === "fulfilled") setMatieres(results[1].value.data);
@@ -142,7 +111,6 @@ export default function DocumentsPage() {
         if (results[4].status === "fulfilled") setSeries(results[4].value.data);
         if (results[5].status === "fulfilled") setSessions(results[5].value.data);
         if (results[6].status === "fulfilled") setMatiereSections(results[6].value.data);
-        if (results[7].status === "fulfilled") setInscriptions(results[7].value.data);
       } catch (e) { console.warn(e); }
       finally { clearTimeout(timer); setLoading(false); }
     })();
@@ -152,186 +120,13 @@ export default function DocumentsPage() {
   const getMatiere          = (id: number) => matieres.find(m => m.id === id)?.nom || "?";
   const getSection          = (id: number) => sections.find(s => s.id === id)?.nom || "?";
   const getSeriesForSection = (sectionId: number) => series.filter(s => s.section === sectionId);
-  const getSerie            = (id: number) => series.find(s => s.id === id);
   const isOptional = (matiereId: number, sectionId: number) =>
     matiereSections.some(ms => ms.matiere === matiereId && ms.section === sectionId && ms.type === 'optionnelle');
-  const getInscriptionsBySerie = (serieId: number) => inscriptions.filter(ins => ins.serie === serieId);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleImportResults = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportingResults(true);
-    setImportResultMsg("");
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await API.post("import-resultats/", form);
-      const newControleList: string[] = res.data.controle || [];
-      localStorage.setItem("controle_list", JSON.stringify(newControleList));
-      setControleList(newControleList);
-      setImportResultMsg(res.data.message || "تم الاستيراد");
-      // Re-fetch inscriptions
-      const insRes = await API.get("inscriptions/");
-      setInscriptions(insRes.data);
-    } catch (err: any) {
-      const msg = err?.response?.data?.error
-        || err?.response?.data?.detail
-        || (typeof err?.response?.data === 'string' ? err.response.data : '')
-        || err?.message
-        || "خطأ في استيراد النتائج";
-      setImportResultMsg(msg);
-      console.error("Import error details:", err?.response?.data || err);
-    }
-    setImportingResults(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // Load controle list from localStorage on mount
-  const getControleList = (): string[] => {
-    try { return JSON.parse(localStorage.getItem("controle_list") || "[]"); }
-    catch { return []; }
-  };
-  const [controleList, setControleList] = useState<string[]>(getControleList);
-
-  const isControle = (ins: Inscription): boolean => {
-    // Check localStorage first (client-side import)
-    if (controleList.length > 0) return controleList.includes(ins.num_ins);
-    // Fallback: check resultat from API (if DB column exists)
-    if (ins.resultat) return ins.resultat === 'controle';
-    // No data yet - show all
-    return true;
-  };
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
-
-  const isControleSession = selectedSession?.nom?.includes("مراقبة") || selectedSession?.nom?.toLowerCase().includes("controle");
   const sessionDates = selectedSession?.jours?.map(j => j.date).sort() || [];
   const uniqueDates = sessionDates.length > 0 ? sessionDates
     : [...new Set(examens.filter(e => e.session === selectedSessionId).map(e => e.date))].sort();
-
-  // Compute all unique time slots from exams for the selected date
-  const allTimeSlots = selectedDate && isControleSession
-    ? [...new Set(examens.filter(e => e.date === selectedDate && e.session === selectedSessionId && !isOptional(e.matiere, e.section)).map(e => e.heure_debut))].sort()
-    : [];
-
-  // ==================== SESSION ROOMS (contrôle) ====================
-
-  const loadSessionRooms = (sessionId: number) => {
-    try {
-      const raw = localStorage.getItem(`controle_rooms_${sessionId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as any[];
-        setSessionRooms(parsed.map((r, idx) => ({
-          uid: `sr-local-${idx}`,
-          salle_id: r.salle_id ?? null,
-          salle_numero: r.salle_numero,
-          serie_ids: r.serie_ids || [],
-          layout: r.layout || "18",
-          candidats: r.candidats || [],
-        })));
-      } else {
-        setSessionRooms([]);
-      }
-    } catch {
-      setSessionRooms([]);
-    }
-  };
-
-  const saveSessionRooms = async () => {
-    setSavingSessionRooms(true);
-    try {
-      localStorage.setItem(`controle_rooms_${selectedSessionId}`, JSON.stringify(sessionRooms));
-      setGenError("");
-    } catch {
-      setGenError("خطأ في الحفظ محلياً");
-    }
-    setSavingSessionRooms(false);
-  };
-
-  const addSessionRoom = () => {
-    const uid = `sr-${Date.now()}`;
-    const newRoom: ControleRoom = {
-      uid,
-      salle_id: null,
-      serie_ids: [],
-      layout: "18",
-      candidats: [],
-    };
-    setSessionRooms(prev => [...prev, newRoom]);
-    setOpenCandidatePicker(prev => new Set(prev).add(uid));
-  };
-
-  const removeSessionRoom = (uid: string) => {
-    setSessionRooms(prev => prev.filter(r => r.uid !== uid));
-  };
-
-  const changeSessionRoomSalle = (uid: string, salleId: number) => {
-    setSessionRooms(prev => prev.map(r => {
-      if (r.uid !== uid) return r;
-      const salle = salles.find(s => s.id === salleId);
-      return { ...r, salle_id: salleId, salle_numero: salle?.numero };
-    }));
-  };
-
-  const changeSessionRoomLayout = (uid: string, layout: "15" | "18") => {
-    setSessionRooms(prev => prev.map(r => r.uid !== uid ? r : { ...r, layout }));
-  };
-
-  const toggleSessionRoomSerie = (uid: string, serieId: number) => {
-    setSessionRooms(prev => prev.map(r => {
-      if (r.uid !== uid) return r;
-      const has = r.serie_ids.includes(serieId);
-      if (has) {
-        return {
-          ...r,
-          serie_ids: r.serie_ids.filter(s => s !== serieId),
-          candidats: r.candidats.filter(c => c.serie_id !== serieId),
-        };
-      } else {
-        const sr = getSerie(serieId);
-        const sectionNom = sr ? getSection(sr.section) : "?";
-        const takenControleNums = new Set(prev.flatMap(p => p.candidats.map(c => c.num_ins)));
-        const serieIns = getInscriptionsBySerie(serieId).filter(i =>
-          (!isControleSession || isControle(i)) && !takenControleNums.has(i.num_ins)
-        );
-        const ins = serieIns.map(i => ({
-          num_ins: i.num_ins,
-          nom_prenom: i.nom_prenom,
-          cin: i.cin,
-          section: String(i.section),
-          section_nom: sectionNom,
-          serie_id: serieId,
-          serie_nom: sr?.nom || "?",
-          etablissement: i.etablissement,
-        }));
-        return {
-          ...r,
-          serie_ids: [...r.serie_ids, serieId],
-          candidats: [...r.candidats, ...ins],
-        };
-      }
-    }));
-  };
-
-  const addCandidatToSessionRoom = (uid: string, candidat: CandidatSelected) => {
-    setSessionRooms(prev => prev.map(r => {
-      if (r.uid !== uid) return r;
-      if (r.candidats.some(c => c.num_ins === candidat.num_ins)) return r;
-      const serieId = candidat.serie_id;
-      const serieIds = r.serie_ids.includes(serieId) ? r.serie_ids : [...r.serie_ids, serieId];
-      return { ...r, serie_ids: serieIds, candidats: [...r.candidats, candidat] };
-    }));
-  };
-
-  const removeCandidatFromSessionRoom = (uid: string, numIns: string) => {
-    setSessionRooms(prev => prev.map(r => {
-      if (r.uid !== uid) return r;
-      const newCandidats = r.candidats.filter(c => c.num_ins !== numIns);
-      const remainingSerieIds = [...new Set(newCandidats.map(c => c.serie_id))];
-      return { ...r, candidats: newCandidats, serie_ids: remainingSerieIds };
-    }));
-  };
 
   // ==================== SESSION / DATE SELECTION ====================
 
@@ -341,15 +136,6 @@ export default function DocumentsPage() {
     setDayAssignments([]);
     setSelectedRoomIds(new Set());
     setSelectedTimeSlot(null);
-    setShowRoomSetup(false);
-    const sess = sessions.find(s => s.id === id);
-    const isCtrl = sess?.nom?.includes("مراقبة") || sess?.nom?.toLowerCase().includes("controle");
-    if (isCtrl) {
-      loadSessionRooms(id);
-      setShowRoomSetup(true);
-    } else {
-      setSessionRooms([]);
-    }
   };
 
   const loadSavedAssignments = async (date: string) => {
@@ -394,16 +180,8 @@ export default function DocumentsPage() {
   const selectDate = (date: string) => {
     setSelectedDate(date);
     setSelectedRoomIds(new Set());
-    // Compute time slots directly from examens (allTimeSlots is stale until re-render)
-    const slotTimes = isControleSession
-      ? [...new Set(examens.filter(e =>
-          e.date === date && e.session === selectedSessionId && !isOptional(e.matiere, e.section)
-        ).map(e => e.heure_debut))].filter(Boolean).sort() as string[]
-      : [];
-    setSelectedTimeSlot(slotTimes.length > 0 ? slotTimes[0] : null);
-    if (!isControleSession) {
-      loadSavedAssignments(date);
-    }
+    setSelectedTimeSlot(null);
+    loadSavedAssignments(date);
   };
 
   const autoAssignDay = (date: string) => {
@@ -492,41 +270,17 @@ export default function DocumentsPage() {
   const saveDayAssignments = async () => {
     setSavingDay(true);
     try {
-      if (isControleSession) {
-        const roomsWithSalle = sessionRooms.filter(r => r.salle_id);
-        const examsOnDate = examens.filter(e =>
-          e.date === selectedDate && e.session === selectedSessionId && !isOptional(e.matiere, e.section)
-        );
-        const times = [...new Set(examsOnDate.map(e => e.heure_debut))].sort();
-        for (const time of times) {
-          const examsInSlot = examsOnDate.filter(e => e.heure_debut === time);
-          for (const ex of examsInSlot) {
-            const sectionSerieIds = series.filter(sr => sr.section === ex.section).map(sr => sr.id);
-            const roomsForExamen = roomsWithSalle.filter(r => r.serie_ids.some(sid => sectionSerieIds.includes(sid)));
-            const roomsPayload = roomsForExamen.map(r => ({
-              salle_id: r.salle_id!,
-              layout: r.layout || "18",
-              serie_ids: r.serie_ids.filter(sid => sectionSerieIds.includes(sid)),
-              candidats: r.candidats.filter(c => c.serie_id && sectionSerieIds.includes(c.serie_id)),
-            }));
-            await API.patch(`examens/${ex.id}/`, {
-              candidat_assignments: { rooms: roomsPayload },
-            });
-          }
-        }
-      } else {
-        const affectedExams = [...new Set(dayAssignments.map(a => a.examen_id))];
-        for (const eid of affectedExams) {
-          await API.delete(`examen-salles/clear/?examen=${eid}`);
-        }
-        for (const a of dayAssignments) {
-          await API.post("examen-salles/", {
-            examen: a.examen_id,
-            salle: a.salle_id,
-            serie: a.serie_id,
-            layout: a.layout || "18",
-          });
-        }
+      const affectedExams = [...new Set(dayAssignments.map(a => a.examen_id))];
+      for (const eid of affectedExams) {
+        await API.delete(`examen-salles/clear/?examen=${eid}`);
+      }
+      for (const a of dayAssignments) {
+        await API.post("examen-salles/", {
+          examen: a.examen_id,
+          salle: a.salle_id,
+          serie: a.serie_id,
+          layout: a.layout || "18",
+        });
       }
     } catch (err: any) {
       setGenError(err?.response?.data?.error || "خطأ في الحفظ");
@@ -537,95 +291,6 @@ export default function DocumentsPage() {
   // ==================== GENERATE DOCUMENTS ====================
 
   const generateDocuments = async () => {
-    if (isControleSession) {
-      const selected = sessionRooms.filter(r => r.salle_id != null && selectedRoomIds.has(r.salle_id));
-      if (selected.length === 0) { setGenError("اختر قاعة واحدة على الأقل"); return; }
-      if (!selectedTimeSlot) { setGenError("اختر وقت"); return; }
-      setGenerating(true); setGenError(""); setDocs([]); setPresenceDocs([]); setRecDocs([]);
-      const allPlanDocs: GeneratedDoc[] = [];
-      const allPresDocs: GeneratedDoc[] = [];
-      const errors: string[] = [];
-      const examsInSlot = examens.filter(e =>
-        e.date === selectedDate && e.session === selectedSessionId && e.heure_debut === selectedTimeSlot && !isOptional(e.matiere, e.section)
-      );
-      for (const ex of examsInSlot) {
-        const sectionSerieIds = series.filter(sr => sr.section === ex.section).map(sr => sr.id);
-        const roomsForExamen = selected.filter(r => r.serie_ids.some(sid => sectionSerieIds.includes(sid)));
-        const sallesPayload = roomsForExamen.filter(r => r.salle_id).map(r => ({
-          salle_id: r.salle_id!,
-          salle_numero: r.salle_numero,
-          layout: r.layout || "18",
-          series: r.serie_ids.filter(sid => sectionSerieIds.includes(sid)).map(sid => {
-            const sr = series.find(s => s.id === sid);
-            return { id: sid, nom: sr?.nom || "?", section_id: ex.section };
-          }),
-        }));
-        const [planRes, presRes] = await Promise.allSettled([
-          API.post("generate-documents/", {
-            examen_id: ex.id,
-            matiere: getMatiere(ex.matiere),
-            section: getSection(ex.section),
-            date: ex.date,
-            heure_debut: ex.heure_debut,
-            heure_fin: ex.heure_fin,
-            salles: sallesPayload,
-          }),
-          API.post("generate-presence/", {
-            matiere: getMatiere(ex.matiere),
-            date: ex.date,
-            heure: selectedTimeSlot || fmtTime(ex.heure_debut),
-            salles: sallesPayload,
-          }),
-        ]);
-        if (planRes.status === "fulfilled") {
-          allPlanDocs.push(...(planRes.value.data.documents || planRes.value.data || []));
-        } else {
-          errors.push((planRes.reason as any)?.response?.data?.error || "خطأ في مخطط القاعة");
-        }
-        if (presRes.status === "fulfilled") {
-          allPresDocs.push(...(presRes.value.data.documents || []));
-        } else {
-          errors.push((presRes.reason as any)?.response?.data?.error || "خطأ في بطاقات الحضور");
-        }
-      }
-      // Generate rec documents for selected contrôle rooms
-      const allRecDocs: GeneratedDoc[] = [];
-      const recPayload = {
-        matiere: "مراقبة",
-        date: selectedDate,
-        salles: selected.filter(r => r.salle_id).map(r => ({
-          salle_numero: r.salle_numero,
-          layout: r.layout || "18",
-          section_str: [...new Set(r.serie_ids.map(sid => {
-            const sr = series.find(s => s.id === sid);
-            return sr ? getSection(sr.section) : "";
-          }).filter(Boolean))].join("، "),
-          series_str: r.serie_ids.map(sid => {
-            const sr = series.find(s => s.id === sid);
-            return sr?.nom || "";
-          }).filter(Boolean).join("، "),
-          candidats: r.candidats.map(c => ({
-            num_ins: c.num_ins,
-            nom_prenom: c.nom_prenom,
-            cin: c.cin || "",
-          })),
-        })),
-      };
-      try {
-        const recRes = await API.post("generate-rec/", recPayload);
-        if (recRes.data?.documents) {
-          allRecDocs.push(...recRes.data.documents);
-        }
-      } catch (err: any) {
-        errors.push(err?.response?.data?.error || "خطأ في قائمة المترشحين");
-      }
-      if (errors.length) setGenError(errors.join(" | "));
-      setDocs(allPlanDocs); setPresenceDocs(allPresDocs); setRecDocs(allRecDocs);
-      if (allPlanDocs.length || allPresDocs.length || allRecDocs.length) setShowModal(true);
-      setGenerating(false);
-      return;
-    }
-
     const selected = dayAssignments.filter(a => selectedRoomIds.has(a.salle_id) && (!selectedTimeSlot || a.heure_debut === selectedTimeSlot));
     if (selected.length === 0) { setGenError("اختر قاعة واحدة على الأقل"); return; }
 
@@ -802,33 +467,11 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const selectedCount = isControleSession
-    ? new Set(sessionRooms.filter(r => r.salle_id && selectedRoomIds.has(r.salle_id)).map(r => r.salle_id)).size
-    : selectedTimeSlot
-        ? new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size
-        : 0;
+  const selectedCount = selectedTimeSlot
+    ? new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size
+    : 0;
 
-  const sortedTimeSlots = isControleSession
-    ? allTimeSlots
-    : [...new Set(dayAssignments.map(a => a.heure_debut))].filter(Boolean).sort() as string[];
-
-  // All series visible in the session room setup (contrôle)
-  const visibleSeries = series;
-
-  // Available inscriptions for the session room setup
-  const sessionExamenSections = [...new Set(
-    (selectedSessionId ? examens.filter(e => e.session === selectedSessionId) : []).map(e => e.section)
-  )];
-  const availableForSession = inscriptions.filter(ins => {
-    if (!sessionExamenSections.map(sid => getSection(sid)).includes(ins.section)) return false;
-    if (isControleSession && !isControle(ins)) return false;
-    return true;
-  });
-  const groupedAvailableIns: Record<number, Inscription[]> = {};
-  for (const ins of availableForSession) {
-    if (!groupedAvailableIns[ins.serie]) groupedAvailableIns[ins.serie] = [];
-    groupedAvailableIns[ins.serie].push(ins);
-  }
+  const sortedTimeSlots = [...new Set(dayAssignments.map(a => a.heure_debut))].filter(Boolean).sort() as string[];
 
   return (
     <div className="general" style={{ padding: "1.5rem 6cm 1.5rem 1.5rem", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
@@ -879,193 +522,11 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            {/* Session Room Setup (contrôle only) */}
-            {isControleSession && showRoomSetup && (
-              <div style={c.card}>
-                <div style={c.hd}>
-                  <div style={{ width: 26, height: 26, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#b45309" }}>2</div>
-                  <h2 style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: 0, flex: 1 }}>إنشاء القاعات (التحكم)</h2>
-                  <span style={c.badge("#92400e", "#fef3c7")}>{sessionRooms.length} قاعة</span>
-                </div>
-                <div style={c.pad}>
-                  {/* Import results */}
-                  <div style={{ marginBottom: "1rem", textAlign: "center" }}>
-                    <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handleImportResults} />
-                    <button onClick={() => fileInputRef.current?.click()} disabled={importingResults}
-                      style={{ padding: "10px 28px", fontSize: 14, fontWeight: 700, borderRadius: 12, border: "none", cursor: "pointer", background: importingResults ? "#9aa0a6" : "#7c3aed", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      {importingResults
-                        ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Loader size={15} style={{ animation: "spin 1s linear infinite" }} /> جاري الاستيراد...</span>
-                        : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> استيراد النتائج</span>}
-                    </button>
-                    {importResultMsg && (
-                      <div style={{ marginTop: 6, color: importResultMsg.includes("خطأ") ? "#dc2626" : "#0f6e56", fontSize: 13, fontWeight: 600 }}>
-                        {importResultMsg}
-                      </div>
-                    )}
-                  </div>
-
-                  {sessionRooms.length === 0 && (
-                    <p style={{ color: "#9aa0a6", fontSize: 13, textAlign: "center", padding: "1rem 0" }}>
-                      لم يتم إنشاء قاعات بعد. أضف القاعات واختر المترشحين لكل قاعة.
-                    </p>
-                  )}
-                  {sessionRooms.map(r => {
-                    const usedCount = r.candidats.length;
-                    const capacity = r.layout === "15" ? 15 : 18;
-                    const overCapacity = usedCount >= capacity;
-                    const takenControleNums = new Set(sessionRooms.flatMap(x => x.candidats.map(c => c.num_ins)));
-                    return (
-                      <div key={r.uid} style={{ marginBottom: 10, background: "#fafafa", borderRadius: 12, padding: "0.75rem", border: overCapacity ? "2px solid #ef4444" : "1px solid #e8eaed" }}>
-                        {/* Top row: room, layout, remove */}
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-                          <div style={{ minWidth: 110 }}>
-                            <div style={{ fontSize: 10, color: "#5f6368", marginBottom: 2 }}>القاعة</div>
-                            <select value={r.salle_id || ""} onChange={e => changeSessionRoomSalle(r.uid, parseInt(e.target.value))}
-                              style={{ width: "100%", padding: "4px 6px", borderRadius: 8, border: "1.5px solid #d1d5db", fontSize: 12, fontFamily: "inherit" }}>
-                              <option value="">اختر</option>
-                              {salles.map(s => (
-                                <option key={s.id} value={s.id}>قاعة {s.numero}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div style={{ minWidth: 80 }}>
-                            <div style={{ fontSize: 10, color: "#5f6368", marginBottom: 2 }}>التصميم</div>
-                            <select value={r.layout} onChange={e => changeSessionRoomLayout(r.uid, e.target.value as "15" | "18")}
-                              style={{ width: "100%", padding: "4px 6px", borderRadius: 8, border: "1.5px solid #d1d5db", fontSize: 12, fontFamily: "inherit" }}>
-                              <option value="15">15 مقعد</option>
-                              <option value="18">18 مقعد</option>
-                            </select>
-                          </div>
-                          <button onClick={() => removeSessionRoom(r.uid)}
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", padding: "14px 4px 0" }}>
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-
-                        {/* Counter */}
-                        <div style={{ marginTop: 8, marginBottom: 6, fontSize: 11, fontWeight: 600, color: "#374151" }}>
-                          المترشحون: {usedCount} / {capacity}
-                          {overCapacity && <span style={{ color: "#ef4444", marginRight: 8 }}>! تجاوز السعة</span>}
-                        </div>
-
-                        {/* Selected candidates (green cards) */}
-                        {r.candidats.length > 0 && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 8, background: "#f0fdf4", borderRadius: 12 }}>
-                              {r.candidats.map(c => {
-                                const sr = series.find(s => s.id === c.serie_id);
-                                return (
-                                  <div key={c.num_ins}
-                                    style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500, borderRadius: 8, border: "2px solid #bbf7d0", background: "#fff", color: "#15803d", fontFamily: "inherit", textAlign: "right", display: "flex", alignItems: "center", gap: 6 }}>
-                                    <button onClick={() => removeCandidatFromSessionRoom(r.uid, c.num_ins)}
-                                      style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", padding: 0, fontSize: 14, fontWeight: 700, lineHeight: 1 }}>×</button>
-                                    <div>
-                                      <div style={{ fontWeight: 700 }}>{c.num_ins}</div>
-                                      <div style={{ fontSize: 10, opacity: 0.7 }}>{c.nom_prenom}</div>
-                                      <div style={{ fontSize: 9, color: "#1a56db" }}>{sr?.nom || c.serie_nom}</div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Available candidates as clickable cards */}
-                        {r.salle_id && (
-                          <div>
-                            {openCandidatePicker.has(r.uid) ? (
-                              <>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
-                                    اختر المترشحين {overCapacity && <span style={{ color: "#dc2626", fontSize: 11 }}>(القاعة ممتلئة)</span>}
-                                  </div>
-                                  <button onClick={() => setOpenCandidatePicker(prev => { const n = new Set(prev); n.delete(r.uid); return n; })}
-                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#5f6368", fontSize: 12, fontWeight: 600, fontFamily: "inherit", padding: "4px 8px", borderRadius: 6 }}>
-                                    إغلاق ×
-                                  </button>
-                                </div>
-                                {(() => {
-                                  const allAvailable = Object.values(groupedAvailableIns).flat().filter(i => !takenControleNums.has(i.num_ins));
-                                  if (allAvailable.length === 0) {
-                                    return <p style={{ color: "#9aa0a6", fontSize: 12 }}>جميع المترشحين تم اختيارهم</p>;
-                                  }
-                                  return (
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 300, overflowY: "auto", padding: 10, background: "#f8f9fa", borderRadius: 12 }}>
-                                      {allAvailable.map(i => {
-                                        const sr = getSerie(i.serie);
-                                        const sectionName = getSection(i.section);
-                                        const disabled = overCapacity;
-                                        return (
-                                          <button key={i.num_ins}
-                                            onClick={() => {
-                                              if (disabled) return;
-                                              const c: CandidatSelected = {
-                                                num_ins: i.num_ins,
-                                                nom_prenom: i.nom_prenom,
-                                                cin: i.cin,
-                                                section: String(i.section),
-                                                section_nom: sectionName,
-                                                serie_id: i.serie,
-                                                serie_nom: sr?.nom || "?",
-                                                etablissement: i.etablissement,
-                                              };
-                                              addCandidatToSessionRoom(r.uid, c);
-                                            }}
-                                            disabled={disabled}
-                                            style={{
-                                              padding: "6px 12px", fontSize: 11, fontWeight: 500, borderRadius: 8,
-                                              border: "2px solid #e8eaed",
-                                              background: disabled ? "#f5f5f5" : "#fff",
-                                              color: disabled ? "#c0c4cc" : "#64748b",
-                                              cursor: disabled ? "not-allowed" : "pointer",
-                                              fontFamily: "inherit",
-                                              textAlign: "right",
-                                              minWidth: 120,
-                                              opacity: disabled ? 0.5 : 1,
-                                            }}>
-                                            <div style={{ fontWeight: 700 }}>{i.num_ins}</div>
-                                            <div style={{ fontSize: 10, opacity: 0.7 }}>{i.nom_prenom}</div>
-                                            {sr && <div style={{ fontSize: 9, color: "#1a56db" }}>{sr.nom}</div>}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                })()}
-                              </>
-                            ) : (
-                              <button onClick={() => setOpenCandidatePicker(prev => { const n = new Set(prev); n.add(r.uid); return n; })}
-                                style={{ background: "#f1f3f4", border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#1a56db", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                + إظهار المترشحين
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div style={{ display: "flex", gap: 8, marginTop: "0.5rem", justifyContent: "flex-end" }}>
-                    <button onClick={addSessionRoom}
-                      style={c.btn("#f1f3f4", "#374151")}>
-                      <Plus size={14} /> إضافة قاعة
-                    </button>
-                    <button onClick={saveSessionRooms} disabled={savingSessionRooms}
-                      style={c.btn(savingSessionRooms ? "#9aa0a6" : "#1a56db")}>
-                      <Save size={14} /> {savingSessionRooms ? "جاري الحفظ..." : "حفظ القاعات"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Date */}
-            {selectedSessionId && !(isControleSession && showRoomSetup && sessionRooms.length === 0) && (
+            {selectedSessionId && (
             <div style={c.card}>
               <div style={c.hd}>
-                <div style={{ width: 26, height: 26, borderRadius: 8, background: "#e8f0fe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#1a56db" }}>
-                  {isControleSession ? "3" : "2"}
-                </div>
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: "#e8f0fe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#1a56db" }}>2</div>
                 <h2 style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: 0 }}>اختر اليوم</h2>
               </div>
               <div style={{ padding: "1rem 1.25rem", display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1091,34 +552,12 @@ export default function DocumentsPage() {
             {selectedDate && (
               <div style={c.card}>
                 <div style={c.hd}>
-                  <div style={{ width: 26, height: 26, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#b45309" }}>
-                    {isControleSession ? "4" : "3"}
-                  </div>
-                  <h2 style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: 0, flex: 1 }}>{isControleSession ? "توزيع القاعات (التحكم)" : "توزيع القاعات والسلاسل"}</h2>
+                  <div style={{ width: 26, height: 26, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#b45309" }}>3</div>
+                  <h2 style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: 0, flex: 1 }}>توزيع القاعات والسلاسل</h2>
                   <span style={c.badge("#166534", "#f0fdf4")}>{fmtDate(selectedDate)}</span>
                 </div>
                 <div style={c.pad}>
-                  {isControleSession ? (
-                    sessionRooms.length === 0 ? (
-                      <p style={{ color: "#9aa0a6", fontSize: 13, textAlign: "center", padding: "1rem 0" }}>أنشئ القاعات أولاً في الخطوة 2</p>
-                    ) : (
-                      <>
-                        <p style={{ fontSize: 12, color: "#5f6368", marginBottom: 8 }}>
-                          تم إنشاء {sessionRooms.filter(r => r.salle_id).length} قاعة بإجمالي {sessionRooms.reduce((s, r) => s + r.candidats.length, 0)} مترشح
-                        </p>
-                        <div style={{ background: "#f0fdf4", border: "1px solid #d1fae5", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#166534" }}>
-                          القاعات والمترشحين مُعرفون مسبقاً في الدورة. يمكنك حفظ التوزيع لكل يوم/وقت عبر زر "تسجيل" أدناه.
-                        </div>
-                        <div style={{ display: "flex", gap: 8, marginTop: "1rem", justifyContent: "flex-end" }}>
-                          <button onClick={saveDayAssignments} disabled={savingDay || sessionRooms.filter(r => r.salle_id).length === 0}
-                            style={c.btn(savingDay ? "#9aa0a6" : "#1a56db")}>
-                            <Save size={14} /> {savingDay ? "جاري الحفظ..." : "تسجيل التوزيع لليوم"}
-                          </button>
-                        </div>
-                      </>
-                    )
-                  ) : (
-                    dayAssignments.length === 0 ? (
+                  {dayAssignments.length === 0 ? (
                       <p style={{ color: "#9aa0a6", fontSize: 13, textAlign: "center", padding: "1rem 0" }}>لا توجد سلاسل لهذا اليوم</p>
                     ) : (
                       <>
@@ -1204,7 +643,6 @@ export default function DocumentsPage() {
                           </button>
                         </div>
                       </>
-                    )
                   )}
                 </div>
               </div>
@@ -1237,9 +675,7 @@ export default function DocumentsPage() {
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderBottom: "1px solid #f1f3f4", paddingBottom: 8 }}>
                         <span style={{ color: "#5f6368" }}>القاعات</span>
-                        <span style={{ fontWeight: 500, color: "#202124" }}>
-                          {isControleSession ? `${sessionRooms.filter(r => r.salle_id).length} قاعة` : `${dayAssignments.length} توزيع`}
-                        </span>
+                        <span style={{ fontWeight: 500, color: "#202124" }}>{dayAssignments.length} توزيع</span>
                       </div>
                     </div>
 
@@ -1260,57 +696,33 @@ export default function DocumentsPage() {
                       </div>
                     )}
 
-                    {(isControleSession ? sessionRooms.filter(r => r.salle_id != null).length > 0 : dayAssignments.length > 0) && (
+                    {dayAssignments.length > 0 && (
                       <div style={{ marginBottom: "1.25rem" }}>
                         {(() => {
-                          if (isControleSession) {
-                            return (
-                              <div style={{ marginBottom: 12 }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                                {sessionRooms.filter(r => r.salle_id).map(r => {
-                                  const isSelected = selectedRoomIds.has(r.salle_id!);
-                                  const seriesNames = r.serie_ids.map(sid => series.find(s => s.id === sid)?.nom).filter(Boolean).join(", ");
-                                  const candidateCount = r.candidats.length;
-                                  return (
-                                  <div key={`cr-${r.uid}`}
-                                    onClick={() => r.salle_id && toggleRoomSelection(r.salle_id)}
-                                    style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
-                                    <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {r.salle_numero}</span>
-                                    <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{seriesNames || "بدون سلاسل"}</div>
-                                    <div style={{ fontSize: 10, color: "#5f6368", marginTop: 2 }}>{candidateCount} مترشح</div>
-                                    {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
-                                  </div>
-                                  );
-                                })}
+                          const groups: Record<string, DayAssignment[]> = {};
+                          dayAssignments.forEach(a => {
+                            const key = a.heure_debut || "other";
+                            if (!groups[key]) groups[key] = [];
+                            groups[key].push(a);
+                          });
+                          return selectedTimeSlot && groups[selectedTimeSlot] ? (
+                            <div key={selectedTimeSlot} style={{ marginBottom: 12 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                              {groups[selectedTimeSlot].map((a) => {
+                                const isSelected = selectedRoomIds.has(a.salle_id);
+                                return (
+                                <div key={`${a.salle_id}-${a.serie_id}-${a.examen_id}`}
+                                  onClick={() => toggleRoomSelection(a.salle_id)}
+                                  style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
+                                  <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {a.salle_numero}</span>
+                                  <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{a.section_nom} — {a.serie_nom}</div>
+                                  {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
                                 </div>
+                                );
+                              })}
                               </div>
-                            );
-                          } else {
-                            const groups: Record<string, DayAssignment[]> = {};
-                            dayAssignments.forEach(a => {
-                              const key = a.heure_debut || "other";
-                              if (!groups[key]) groups[key] = [];
-                              groups[key].push(a);
-                            });
-                            return selectedTimeSlot && groups[selectedTimeSlot] ? (
-                              <div key={selectedTimeSlot} style={{ marginBottom: 12 }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                                {groups[selectedTimeSlot].map((a) => {
-                                  const isSelected = selectedRoomIds.has(a.salle_id);
-                                  return (
-                                  <div key={`${a.salle_id}-${a.serie_id}-${a.examen_id}`}
-                                    onClick={() => toggleRoomSelection(a.salle_id)}
-                                    style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
-                                    <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {a.salle_numero}</span>
-                                    <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{a.section_nom} — {a.serie_nom}</div>
-                                    {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
-                                  </div>
-                                  );
-                                })}
-                                </div>
-                              </div>
-                            ) : null;
-                          }
+                            </div>
+                          ) : null;
                         })()}
                         <p style={{ fontSize: 12, color: "#5f6368", margin: "4px 0 0" }}>
                           {selectedCount > 0 ? `✓ ${selectedCount} قاعة محددة` : "اختر القاعات لإنشاء الوثائق"}
@@ -1369,7 +781,7 @@ export default function DocumentsPage() {
               <div style={{ width: 56, height: 56, borderRadius: 16, background: "#e8f0fe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto 12px" }}>✅</div>
               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#202124", margin: "0 0 4px" }}>وثائقك جاهزة للتحميل</h3>
               <p style={{ fontSize: 13, color: "#5f6368", margin: 0 }}>
-                 {docs.length + presenceDocs.length + verifDocs.length + recDocs.length} وثائق جاهزة
+                 {docs.length + presenceDocs.length + verifDocs.length} وثائق جاهزة
               </p>
             </div>
             {dlError && (
@@ -1377,9 +789,9 @@ export default function DocumentsPage() {
                 {dlError}
               </div>
             )}
-            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0 || recDocs.length > 0) ? (
+            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0) ? (
               (() => {
-                const allDocs = [...docs, ...presenceDocs, ...verifDocs, ...recDocs];
+                const allDocs = [...docs, ...presenceDocs, ...verifDocs];
                 const grouped: Record<string, typeof allDocs> = {};
                 for (const d of allDocs) {
                   if (!grouped[d.type]) grouped[d.type] = [];
@@ -1393,7 +805,6 @@ export default function DocumentsPage() {
                   presence: { icon: "📋", label: "بطاقات الحضور",     bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   door:     { icon: "📋", label: "سجل القاعة",        bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   verif:    { icon: "📋", label: "بطاقات التثبت",     bg: "#fef3c7", border: "#fde68a", btn: "#92400e" },
-                  rec:      { icon: "📋", label: "قائمة المترشحين",   bg: "#f0fdf4", border: "#bbf7d0", btn: "#0f6e56" },
                 };
                 return Object.entries(grouped).map(([type, docs]) => {
                   const info = typeInfo[type] || { icon: "📄", label: type, bg: "#f8f9fa", border: "#e8eaed", btn: "#5f6368" };
@@ -1419,11 +830,11 @@ export default function DocumentsPage() {
               })()
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={downloadAllPdf} disabled={docs.length === 0 && recDocs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
+              <button onClick={downloadAllPdf} disabled={docs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
                 <Download size={15} /> PDF تحميل الكل
               </button>
               <button onClick={downloadAll} style={{ ...c.btn("#1e466e"), flex: 1, justifyContent: "center" }}>
-                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length + recDocs.length})
+                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length})
               </button>
               <button onClick={() => setShowModal(false)} style={{ ...c.btn("#f1f3f4", "#374151"), flex: 1, justifyContent: "center" }}>
                 إغلاق

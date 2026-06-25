@@ -10,6 +10,7 @@ import PrivateRoute from "./pages/auth/PrivateRoute";
 
 import Centres from "./pages/centres";
 import Salles from "./pages/salles";
+import SallesControle from "./pages/SallesControle";
 import Profs from "./pages/profs";
 import Candidats from "./pages/candidats";
 import Exams from "./pages/dashbords/Exams";
@@ -55,6 +56,7 @@ function App() {
           <Route path="general" element={<General />} />
           <Route path="calendrier" element={<ExamCalendar />} />
           <Route path="salles" element={<Salles />} />
+          <Route path="salles/controle" element={<SallesControle />} />
           <Route path="profs" element={<ProfsDashboard />} />
           <Route path="profs/liste" element={<Profs />} />
           <Route path="profs/surveillance" element={<SurveillanceProfs />} />
@@ -87,6 +89,7 @@ function App() {
           <Route path="general" element={<General />} />
           <Route path="calendrier" element={<ExamCalendar />} />
           <Route path="salles" element={<Salles />} />
+          <Route path="salles/controle" element={<SallesControle />} />
           <Route path="profs" element={<ProfsDashboard />} />
           <Route path="profs/liste" element={<Profs />} />
           <Route path="profs/surveillance" element={<SurveillanceProfs />} />
