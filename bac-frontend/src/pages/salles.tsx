@@ -217,77 +217,34 @@ export default function DocumentsPage() {
 
   // ==================== SESSION ROOMS (contrôle) ====================
 
-  const loadLocalRooms = (sessionId: number): ControleRoom[] | null => {
+  const loadSessionRooms = (sessionId: number) => {
     try {
       const raw = localStorage.getItem(`controle_rooms_${sessionId}`);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as any[];
-      return parsed.map((r, idx) => ({
-        uid: `sr-local-${idx}`,
-        salle_id: r.salle_id ?? null,
-        salle_numero: r.salle_numero,
-        serie_ids: r.serie_ids || [],
-        layout: r.layout || "18",
-        candidats: r.candidats || [],
-      }));
-    } catch { return null; }
-  };
-
-  const loadSessionRooms = async (sessionId: number) => {
-    try {
-      const res = await API.get(`controle-config/?session=${sessionId}`);
-      if (res.data.length > 0 && res.data[0].rooms) {
-        setSessionRooms(res.data[0].rooms.map((r: any, idx: number) => ({
-          uid: `sr-${idx}`,
+      if (raw) {
+        const parsed = JSON.parse(raw) as any[];
+        setSessionRooms(parsed.map((r, idx) => ({
+          uid: `sr-local-${idx}`,
           salle_id: r.salle_id ?? null,
           salle_numero: r.salle_numero,
           serie_ids: r.serie_ids || [],
           layout: r.layout || "18",
           candidats: r.candidats || [],
         })));
-        return;
+      } else {
+        setSessionRooms([]);
       }
     } catch {
-      // Server failed, try localStorage
-    }
-    const local = loadLocalRooms(sessionId);
-    if (local) {
-      setSessionRooms(local);
-    } else {
       setSessionRooms([]);
     }
   };
 
   const saveSessionRooms = async () => {
     setSavingSessionRooms(true);
-    // Always save to localStorage as fallback
-    const saveLocal = (rooms: ControleRoom[]) => {
-      try {
-        localStorage.setItem(`controle_rooms_${selectedSessionId}`, JSON.stringify(rooms));
-      } catch {}
-    };
     try {
-      const payload = sessionRooms.map(r => ({
-        salle_id: r.salle_id,
-        salle_numero: r.salle_numero,
-        serie_ids: r.serie_ids,
-        layout: r.layout,
-        candidats: r.candidats,
-      }));
-      const res = await API.get(`controle-config/?session=${selectedSessionId}`);
-      if (res.data.length > 0) {
-        await API.patch(`controle-config/${res.data[0].id}/`, { rooms: payload, session: selectedSessionId });
-      } else {
-        await API.post("controle-config/", { rooms: payload, session: selectedSessionId });
-      }
-      saveLocal(sessionRooms);
+      localStorage.setItem(`controle_rooms_${selectedSessionId}`, JSON.stringify(sessionRooms));
       setGenError("");
-    } catch (err: any) {
-      const detail = err?.response?.data?.error || err?.response?.data?.detail || (typeof err?.response?.data === 'string' ? err.response.data : "") || err?.message || "خطأ في حفظ القاعات";
-      console.error("saveSessionRooms error:", err?.response?.data || err);
-      // Save locally even if server fails
-      saveLocal(sessionRooms);
-      setGenError("محلياً: تم الحفظ محلياً فقط - " + detail);
+    } catch {
+      setGenError("خطأ في الحفظ محلياً");
     }
     setSavingSessionRooms(false);
   };
@@ -388,7 +345,7 @@ export default function DocumentsPage() {
     const sess = sessions.find(s => s.id === id);
     const isCtrl = sess?.nom?.includes("مراقبة") || sess?.nom?.toLowerCase().includes("controle");
     if (isCtrl) {
-      await loadSessionRooms(id);
+      loadSessionRooms(id);
       setShowRoomSetup(true);
     } else {
       setSessionRooms([]);
