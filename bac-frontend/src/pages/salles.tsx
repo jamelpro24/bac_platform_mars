@@ -110,6 +110,7 @@ export default function DocumentsPage() {
   const [selectedRoomIds, setSelectedRoomIds] = useState<Set<number>>(new Set());
   const [sessionRooms, setSessionRooms] = useState<ControleRoom[]>([]);
   const [savingSessionRooms, setSavingSessionRooms] = useState(false);
+  const [openCandidatePicker, setOpenCandidatePicker] = useState<Set<string>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [showRoomSetup, setShowRoomSetup] = useState(false);
 
@@ -260,14 +261,16 @@ export default function DocumentsPage() {
   };
 
   const addSessionRoom = () => {
+    const uid = `sr-${Date.now()}`;
     const newRoom: ControleRoom = {
-      uid: `sr-${Date.now()}`,
+      uid,
       salle_id: null,
       serie_ids: [],
       layout: "18",
       candidats: [],
     };
     setSessionRooms(prev => [...prev, newRoom]);
+    setOpenCandidatePicker(prev => new Set(prev).add(uid));
   };
 
   const removeSessionRoom = (uid: string) => {
@@ -976,57 +979,72 @@ export default function DocumentsPage() {
                         {/* Available candidates as clickable cards */}
                         {r.salle_id && (
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 8px" }}>
-                              اختر المترشحين {overCapacity && <span style={{ color: "#dc2626", fontSize: 11 }}>(القاعة ممتلئة)</span>}
-                            </div>
-                            {(() => {
-                              const allAvailable = Object.values(groupedAvailableIns).flat().filter(i => !takenControleNums.has(i.num_ins));
-                              if (allAvailable.length === 0) {
-                                return <p style={{ color: "#9aa0a6", fontSize: 12 }}>جميع المترشحين تم اختيارهم</p>;
-                              }
-                              return (
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 300, overflowY: "auto", padding: 10, background: "#f8f9fa", borderRadius: 12 }}>
-                                  {allAvailable.map(i => {
-                                    const sr = getSerie(i.serie);
-                                    const sectionName = getSection(i.section);
-                                    const disabled = overCapacity;
-                                    return (
-                                      <button key={i.num_ins}
-                                        onClick={() => {
-                                          if (disabled) return;
-                                          const c: CandidatSelected = {
-                                            num_ins: i.num_ins,
-                                            nom_prenom: i.nom_prenom,
-                                            cin: i.cin,
-                                            section: String(i.section),
-                                            section_nom: sectionName,
-                                            serie_id: i.serie,
-                                            serie_nom: sr?.nom || "?",
-                                            etablissement: i.etablissement,
-                                          };
-                                          addCandidatToSessionRoom(r.uid, c);
-                                        }}
-                                        disabled={disabled}
-                                        style={{
-                                          padding: "6px 12px", fontSize: 11, fontWeight: 500, borderRadius: 8,
-                                          border: "2px solid #e8eaed",
-                                          background: disabled ? "#f5f5f5" : "#fff",
-                                          color: disabled ? "#c0c4cc" : "#64748b",
-                                          cursor: disabled ? "not-allowed" : "pointer",
-                                          fontFamily: "inherit",
-                                          textAlign: "right",
-                                          minWidth: 120,
-                                          opacity: disabled ? 0.5 : 1,
-                                        }}>
-                                        <div style={{ fontWeight: 700 }}>{i.num_ins}</div>
-                                        <div style={{ fontSize: 10, opacity: 0.7 }}>{i.nom_prenom}</div>
-                                        {sr && <div style={{ fontSize: 9, color: "#1a56db" }}>{sr.nom}</div>}
-                                      </button>
-                                    );
-                                  })}
+                            {openCandidatePicker.has(r.uid) ? (
+                              <>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                                    اختر المترشحين {overCapacity && <span style={{ color: "#dc2626", fontSize: 11 }}>(القاعة ممتلئة)</span>}
+                                  </div>
+                                  <button onClick={() => setOpenCandidatePicker(prev => { const n = new Set(prev); n.delete(r.uid); return n; })}
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#5f6368", fontSize: 12, fontWeight: 600, fontFamily: "inherit", padding: "4px 8px", borderRadius: 6 }}>
+                                    إغلاق ×
+                                  </button>
                                 </div>
-                              );
-                            })()}
+                                {(() => {
+                                  const allAvailable = Object.values(groupedAvailableIns).flat().filter(i => !takenControleNums.has(i.num_ins));
+                                  if (allAvailable.length === 0) {
+                                    return <p style={{ color: "#9aa0a6", fontSize: 12 }}>جميع المترشحين تم اختيارهم</p>;
+                                  }
+                                  return (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 300, overflowY: "auto", padding: 10, background: "#f8f9fa", borderRadius: 12 }}>
+                                      {allAvailable.map(i => {
+                                        const sr = getSerie(i.serie);
+                                        const sectionName = getSection(i.section);
+                                        const disabled = overCapacity;
+                                        return (
+                                          <button key={i.num_ins}
+                                            onClick={() => {
+                                              if (disabled) return;
+                                              const c: CandidatSelected = {
+                                                num_ins: i.num_ins,
+                                                nom_prenom: i.nom_prenom,
+                                                cin: i.cin,
+                                                section: String(i.section),
+                                                section_nom: sectionName,
+                                                serie_id: i.serie,
+                                                serie_nom: sr?.nom || "?",
+                                                etablissement: i.etablissement,
+                                              };
+                                              addCandidatToSessionRoom(r.uid, c);
+                                            }}
+                                            disabled={disabled}
+                                            style={{
+                                              padding: "6px 12px", fontSize: 11, fontWeight: 500, borderRadius: 8,
+                                              border: "2px solid #e8eaed",
+                                              background: disabled ? "#f5f5f5" : "#fff",
+                                              color: disabled ? "#c0c4cc" : "#64748b",
+                                              cursor: disabled ? "not-allowed" : "pointer",
+                                              fontFamily: "inherit",
+                                              textAlign: "right",
+                                              minWidth: 120,
+                                              opacity: disabled ? 0.5 : 1,
+                                            }}>
+                                            <div style={{ fontWeight: 700 }}>{i.num_ins}</div>
+                                            <div style={{ fontSize: 10, opacity: 0.7 }}>{i.nom_prenom}</div>
+                                            {sr && <div style={{ fontSize: 9, color: "#1a56db" }}>{sr.nom}</div>}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
+                              </>
+                            ) : (
+                              <button onClick={() => setOpenCandidatePicker(prev => { const n = new Set(prev); n.add(r.uid); return n; })}
+                                style={{ background: "#f1f3f4", border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#1a56db", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                + إظهار المترشحين
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
