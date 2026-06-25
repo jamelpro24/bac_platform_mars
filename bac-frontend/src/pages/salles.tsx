@@ -802,9 +802,9 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const selectedCount = selectedTimeSlot && isControleSession
+  const selectedCount = isControleSession
     ? new Set(sessionRooms.filter(r => r.salle_id && selectedRoomIds.has(r.salle_id)).map(r => r.salle_id)).size
-    : (!isControleSession && selectedTimeSlot)
+    : selectedTimeSlot
         ? new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size
         : 0;
 
