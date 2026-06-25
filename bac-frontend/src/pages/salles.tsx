@@ -104,6 +104,7 @@ export default function DocumentsPage() {
   const [showModal,  setShowModal]  = useState(false);
   const [presenceDocs, setPresenceDocs] = useState<GeneratedDoc[]>([]);
   const [verifDocs, setVerifDocs] = useState<GeneratedDoc[]>([]);
+  const [recDocs,   setRecDocs]   = useState<GeneratedDoc[]>([]);
 
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<Set<number>>(new Set());
@@ -542,7 +543,7 @@ export default function DocumentsPage() {
       const selected = sessionRooms.filter(r => r.salle_id != null && selectedRoomIds.has(r.salle_id));
       if (selected.length === 0) { setGenError("اختر قاعة واحدة على الأقل"); return; }
       if (!selectedTimeSlot) { setGenError("اختر وقت"); return; }
-      setGenerating(true); setGenError(""); setDocs([]); setPresenceDocs([]);
+      setGenerating(true); setGenError(""); setDocs([]); setPresenceDocs([]); setRecDocs([]);
       const allPlanDocs: GeneratedDoc[] = [];
       const allPresDocs: GeneratedDoc[] = [];
       const errors: string[] = [];
@@ -589,9 +590,40 @@ export default function DocumentsPage() {
           errors.push((presRes.reason as any)?.response?.data?.error || "خطأ في بطاقات الحضور");
         }
       }
+      // Generate rec documents for selected contrôle rooms
+      const allRecDocs: GeneratedDoc[] = [];
+      const recPayload = {
+        matiere: "مراقبة",
+        date: selectedDate,
+        salles: selected.filter(r => r.salle_id).map(r => ({
+          salle_numero: r.salle_numero,
+          layout: r.layout || "18",
+          section_str: [...new Set(r.serie_ids.map(sid => {
+            const sr = series.find(s => s.id === sid);
+            return sr ? getSection(sr.section) : "";
+          }).filter(Boolean))].join("، "),
+          series_str: r.serie_ids.map(sid => {
+            const sr = series.find(s => s.id === sid);
+            return sr?.nom || "";
+          }).filter(Boolean).join("، "),
+          candidats: r.candidats.map(c => ({
+            num_ins: c.num_ins,
+            nom_prenom: c.nom_prenom,
+            cin: c.cin || "",
+          })),
+        })),
+      };
+      try {
+        const recRes = await API.post("generate-rec/", recPayload);
+        if (recRes.data?.documents) {
+          allRecDocs.push(...recRes.data.documents);
+        }
+      } catch (err: any) {
+        errors.push(err?.response?.data?.error || "خطأ في قائمة المترشحين");
+      }
       if (errors.length) setGenError(errors.join(" | "));
-      setDocs(allPlanDocs); setPresenceDocs(allPresDocs);
-      if (allPlanDocs.length || allPresDocs.length) setShowModal(true);
+      setDocs(allPlanDocs); setPresenceDocs(allPresDocs); setRecDocs(allRecDocs);
+      if (allPlanDocs.length || allPresDocs.length || allRecDocs.length) setShowModal(true);
       setGenerating(false);
       return;
     }
@@ -1324,7 +1356,7 @@ export default function DocumentsPage() {
               <div style={{ width: 56, height: 56, borderRadius: 16, background: "#e8f0fe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto 12px" }}>✅</div>
               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#202124", margin: "0 0 4px" }}>وثائقك جاهزة للتحميل</h3>
               <p style={{ fontSize: 13, color: "#5f6368", margin: 0 }}>
-                {docs.length + presenceDocs.length + verifDocs.length} وثائق جاهزة
+                 {docs.length + presenceDocs.length + verifDocs.length + recDocs.length} وثائق جاهزة
               </p>
             </div>
             {dlError && (
@@ -1332,9 +1364,9 @@ export default function DocumentsPage() {
                 {dlError}
               </div>
             )}
-            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0) ? (
+            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0 || recDocs.length > 0) ? (
               (() => {
-                const allDocs = [...docs, ...presenceDocs, ...verifDocs];
+                const allDocs = [...docs, ...presenceDocs, ...verifDocs, ...recDocs];
                 const grouped: Record<string, typeof allDocs> = {};
                 for (const d of allDocs) {
                   if (!grouped[d.type]) grouped[d.type] = [];
@@ -1348,6 +1380,7 @@ export default function DocumentsPage() {
                   presence: { icon: "📋", label: "بطاقات الحضور",     bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   door:     { icon: "📋", label: "سجل القاعة",        bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   verif:    { icon: "📋", label: "بطاقات التثبت",     bg: "#fef3c7", border: "#fde68a", btn: "#92400e" },
+                  rec:      { icon: "📋", label: "قائمة المترشحين",   bg: "#f0fdf4", border: "#bbf7d0", btn: "#0f6e56" },
                 };
                 return Object.entries(grouped).map(([type, docs]) => {
                   const info = typeInfo[type] || { icon: "📄", label: type, bg: "#f8f9fa", border: "#e8eaed", btn: "#5f6368" };
@@ -1373,11 +1406,11 @@ export default function DocumentsPage() {
               })()
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={downloadAllPdf} disabled={docs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
+              <button onClick={downloadAllPdf} disabled={docs.length === 0 && recDocs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
                 <Download size={15} /> PDF تحميل الكل
               </button>
               <button onClick={downloadAll} style={{ ...c.btn("#1e466e"), flex: 1, justifyContent: "center" }}>
-                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length})
+                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length + recDocs.length})
               </button>
               <button onClick={() => setShowModal(false)} style={{ ...c.btn("#f1f3f4", "#374151"), flex: 1, justifyContent: "center" }}>
                 إغلاق
