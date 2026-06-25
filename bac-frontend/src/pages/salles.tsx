@@ -394,7 +394,13 @@ export default function DocumentsPage() {
   const selectDate = (date: string) => {
     setSelectedDate(date);
     setSelectedRoomIds(new Set());
-    setSelectedTimeSlot(allTimeSlots.length > 0 ? allTimeSlots[0] : null);
+    // Compute time slots directly from examens (allTimeSlots is stale until re-render)
+    const slotTimes = isControleSession
+      ? [...new Set(examens.filter(e =>
+          e.date === date && e.session === selectedSessionId && !isOptional(e.matiere, e.section)
+        ).map(e => e.heure_debut))].filter(Boolean).sort() as string[]
+      : [];
+    setSelectedTimeSlot(slotTimes.length > 0 ? slotTimes[0] : null);
     if (!isControleSession) {
       loadSavedAssignments(date);
     }
