@@ -12,6 +12,26 @@ type Serie   = { id: number; nom: string; section: number; section_nom?: string;
 type Jour = { date: string; label: string };
 type Session = { id: number; nom: string; jours: Jour[] };
 type MatiereSection = { id: number; matiere: number; section: number; heures: number; type: string; matiere_nom?: string; section_nom?: string };
+type CandidatSelected = {
+  num_ins: string;
+  nom_prenom: string;
+  cin?: string;
+  section: string;
+  section_nom: string;
+  serie_id: number;
+  serie_nom: string;
+  etablissement?: string;
+};
+
+type ControleRoom = {
+  uid: string;
+  salle_id: number | null;
+  salle_numero?: number;
+  serie_ids: number[];
+  layout: "15" | "18";
+  candidats: CandidatSelected[];
+};
+
 type Examen = {
   id: number;
   date: string;
@@ -40,7 +60,7 @@ type DayAssignment = {
 type GeneratedDoc = {
   doc_id: string;
   label: string;
-  type: "presence" | "plan" | "verif" | "envelope" | "numero" | "sortie" | "door";
+  type: "presence" | "plan" | "verif" | "envelope" | "numero" | "sortie" | "door" | "rec";
 };
 
 function fmtDate(d: string) {
@@ -80,9 +100,11 @@ export default function DocumentsPage() {
   const [showModal,  setShowModal]  = useState(false);
   const [presenceDocs, setPresenceDocs] = useState<GeneratedDoc[]>([]);
   const [verifDocs, setVerifDocs] = useState<GeneratedDoc[]>([]);
+  const [recDocs,   setRecDocs]   = useState<GeneratedDoc[]>([]);
 
   const [selectedRoomIds, setSelectedRoomIds] = useState<Set<number>>(new Set());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  const [sessionRooms, setSessionRooms] = useState<ControleRoom[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 15000);
@@ -124,9 +146,31 @@ export default function DocumentsPage() {
     matiereSections.some(ms => ms.matiere === matiereId && ms.section === sectionId && ms.type === 'optionnelle');
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
+  const isControleSession = selectedSession?.nom?.includes("مراقبة") || selectedSession?.nom?.toLowerCase().includes("controle");
   const sessionDates = selectedSession?.jours?.map(j => j.date).sort() || [];
   const uniqueDates = sessionDates.length > 0 ? sessionDates
     : [...new Set(examens.filter(e => e.session === selectedSessionId).map(e => e.date))].sort();
+
+  const loadSessionRooms = (sessionId: number) => {
+    try {
+      const raw = localStorage.getItem(`controle_rooms_${sessionId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as any[];
+        setSessionRooms(parsed.map((r, idx) => ({
+          uid: `sr-local-${idx}`,
+          salle_id: r.salle_id ?? null,
+          salle_numero: r.salle_numero,
+          serie_ids: r.serie_ids || [],
+          layout: r.layout || "18",
+          candidats: r.candidats || [],
+        })));
+      } else {
+        setSessionRooms([]);
+      }
+    } catch {
+      setSessionRooms([]);
+    }
+  };
 
   // ==================== SESSION / DATE SELECTION ====================
 
@@ -136,6 +180,12 @@ export default function DocumentsPage() {
     setDayAssignments([]);
     setSelectedRoomIds(new Set());
     setSelectedTimeSlot(null);
+    const sess = sessions.find(s => s.id === id);
+    if (sess?.nom?.includes("مراقبة") || sess?.nom?.toLowerCase().includes("controle")) {
+      loadSessionRooms(id);
+    } else {
+      setSessionRooms([]);
+    }
   };
 
   const loadSavedAssignments = async (date: string) => {
@@ -180,8 +230,15 @@ export default function DocumentsPage() {
   const selectDate = (date: string) => {
     setSelectedDate(date);
     setSelectedRoomIds(new Set());
-    setSelectedTimeSlot(null);
-    loadSavedAssignments(date);
+    if (isControleSession) {
+      const slotTimes = [...new Set(examens.filter(e =>
+        e.date === date && e.session === selectedSessionId && !isOptional(e.matiere, e.section)
+      ).map(e => e.heure_debut))].filter(Boolean).sort() as string[];
+      setSelectedTimeSlot(slotTimes.length > 0 ? slotTimes[0] : null);
+    } else {
+      setSelectedTimeSlot(null);
+      loadSavedAssignments(date);
+    }
   };
 
   const autoAssignDay = (date: string) => {
@@ -291,6 +348,94 @@ export default function DocumentsPage() {
   // ==================== GENERATE DOCUMENTS ====================
 
   const generateDocuments = async () => {
+    if (isControleSession) {
+      const selected = sessionRooms.filter(r => r.salle_id != null && selectedRoomIds.has(r.salle_id));
+      if (selected.length === 0) { setGenError("اختر قاعة واحدة على الأقل"); return; }
+      if (!selectedTimeSlot) { setGenError("اختر وقت"); return; }
+      setGenerating(true); setGenError(""); setDocs([]); setPresenceDocs([]); setRecDocs([]);
+      const allPlanDocs: GeneratedDoc[] = [];
+      const allPresDocs: GeneratedDoc[] = [];
+      const errors: string[] = [];
+      const examsInSlot = examens.filter(e =>
+        e.date === selectedDate && e.session === selectedSessionId && e.heure_debut === selectedTimeSlot && !isOptional(e.matiere, e.section)
+      );
+      for (const ex of examsInSlot) {
+        const sectionSerieIds = series.filter(sr => sr.section === ex.section).map(sr => sr.id);
+        const roomsForExamen = selected.filter(r => r.serie_ids.some(sid => sectionSerieIds.includes(sid)));
+        const sallesPayload = roomsForExamen.filter(r => r.salle_id).map(r => ({
+          salle_id: r.salle_id!,
+          salle_numero: r.salle_numero,
+          layout: r.layout || "18",
+          series: r.serie_ids.filter(sid => sectionSerieIds.includes(sid)).map(sid => {
+            const sr = series.find(s => s.id === sid);
+            return { id: sid, nom: sr?.nom || "?", section_id: ex.section };
+          }),
+        }));
+        const [planRes, presRes] = await Promise.allSettled([
+          API.post("generate-documents/", {
+            examen_id: ex.id,
+            matiere: getMatiere(ex.matiere),
+            section: getSection(ex.section),
+            date: ex.date,
+            heure_debut: ex.heure_debut,
+            heure_fin: ex.heure_fin,
+            salles: sallesPayload,
+          }),
+          API.post("generate-presence/", {
+            matiere: getMatiere(ex.matiere),
+            date: ex.date,
+            heure: selectedTimeSlot || fmtTime(ex.heure_debut),
+            salles: sallesPayload,
+          }),
+        ]);
+        if (planRes.status === "fulfilled") {
+          allPlanDocs.push(...(planRes.value.data.documents || planRes.value.data || []));
+        } else {
+          errors.push((planRes.reason as any)?.response?.data?.error || "خطأ في مخطط القاعة");
+        }
+        if (presRes.status === "fulfilled") {
+          allPresDocs.push(...(presRes.value.data.documents || []));
+        } else {
+          errors.push((presRes.reason as any)?.response?.data?.error || "خطأ في بطاقات الحضور");
+        }
+      }
+      const allRecDocs: GeneratedDoc[] = [];
+      const recPayload = {
+        matiere: "مراقبة",
+        date: selectedDate,
+        salles: selected.filter(r => r.salle_id).map(r => ({
+          salle_numero: r.salle_numero,
+          layout: r.layout || "18",
+          section_str: [...new Set(r.serie_ids.map(sid => {
+            const sr = series.find(s => s.id === sid);
+            return sr ? getSection(sr.section) : "";
+          }).filter(Boolean))].join("، "),
+          series_str: r.serie_ids.map(sid => {
+            const sr = series.find(s => s.id === sid);
+            return sr?.nom || "";
+          }).filter(Boolean).join("، "),
+          candidats: r.candidats.map(c => ({
+            num_ins: c.num_ins,
+            nom_prenom: c.nom_prenom,
+            cin: c.cin || "",
+          })),
+        })),
+      };
+      try {
+        const recRes = await API.post("generate-rec/", recPayload);
+        if (recRes.data?.documents) {
+          allRecDocs.push(...recRes.data.documents);
+        }
+      } catch (err: any) {
+        errors.push(err?.response?.data?.error || "خطأ في قائمة المترشحين");
+      }
+      if (errors.length) setGenError(errors.join(" | "));
+      setDocs(allPlanDocs); setPresenceDocs(allPresDocs); setRecDocs(allRecDocs);
+      if (allPlanDocs.length || allPresDocs.length || allRecDocs.length) setShowModal(true);
+      setGenerating(false);
+      return;
+    }
+
     const selected = dayAssignments.filter(a => selectedRoomIds.has(a.salle_id) && (!selectedTimeSlot || a.heure_debut === selectedTimeSlot));
     if (selected.length === 0) { setGenError("اختر قاعة واحدة على الأقل"); return; }
 
@@ -390,7 +535,7 @@ export default function DocumentsPage() {
   };
 
   const downloadAll = async () => {
-    const all = [...docs, ...presenceDocs, ...verifDocs];
+    const all = [...docs, ...presenceDocs, ...verifDocs, ...recDocs];
     if (all.length === 0) return;
     try {
       const res = await API.post("download-zip/", {
@@ -467,11 +612,15 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const selectedCount = selectedTimeSlot
-    ? new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size
-    : 0;
+  const selectedCount = isControleSession
+    ? new Set(sessionRooms.filter(r => r.salle_id && selectedRoomIds.has(r.salle_id)).map(r => r.salle_id)).size
+    : selectedTimeSlot
+        ? new Set(dayAssignments.filter(a => a.heure_debut === selectedTimeSlot && selectedRoomIds.has(a.salle_id)).map(a => a.salle_id)).size
+        : 0;
 
-  const sortedTimeSlots = [...new Set(dayAssignments.map(a => a.heure_debut))].filter(Boolean).sort() as string[];
+  const sortedTimeSlots = isControleSession
+    ? [...new Set(examens.filter(e => e.date === selectedDate && e.session === selectedSessionId && !isOptional(e.matiere, e.section)).map(e => e.heure_debut))].filter(Boolean).sort() as string[]
+    : [...new Set(dayAssignments.map(a => a.heure_debut))].filter(Boolean).sort() as string[];
 
   return (
     <div className="general" style={{ padding: "1.5rem 6cm 1.5rem 1.5rem", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
@@ -675,7 +824,9 @@ export default function DocumentsPage() {
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderBottom: "1px solid #f1f3f4", paddingBottom: 8 }}>
                         <span style={{ color: "#5f6368" }}>القاعات</span>
-                        <span style={{ fontWeight: 500, color: "#202124" }}>{dayAssignments.length} توزيع</span>
+                        <span style={{ fontWeight: 500, color: "#202124" }}>
+                          {isControleSession ? `${sessionRooms.filter(r => r.salle_id).length} قاعة` : `${dayAssignments.length} توزيع`}
+                        </span>
                       </div>
                     </div>
 
@@ -696,33 +847,57 @@ export default function DocumentsPage() {
                       </div>
                     )}
 
-                    {dayAssignments.length > 0 && (
+                    {(isControleSession ? sessionRooms.filter(r => r.salle_id != null).length > 0 : dayAssignments.length > 0) && (
                       <div style={{ marginBottom: "1.25rem" }}>
                         {(() => {
-                          const groups: Record<string, DayAssignment[]> = {};
-                          dayAssignments.forEach(a => {
-                            const key = a.heure_debut || "other";
-                            if (!groups[key]) groups[key] = [];
-                            groups[key].push(a);
-                          });
-                          return selectedTimeSlot && groups[selectedTimeSlot] ? (
-                            <div key={selectedTimeSlot} style={{ marginBottom: 12 }}>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                              {groups[selectedTimeSlot].map((a) => {
-                                const isSelected = selectedRoomIds.has(a.salle_id);
-                                return (
-                                <div key={`${a.salle_id}-${a.serie_id}-${a.examen_id}`}
-                                  onClick={() => toggleRoomSelection(a.salle_id)}
-                                  style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
-                                  <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {a.salle_numero}</span>
-                                  <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{a.section_nom} — {a.serie_nom}</div>
-                                  {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
+                          if (isControleSession) {
+                            return (
+                              <div style={{ marginBottom: 12 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                                {sessionRooms.filter(r => r.salle_id).map(r => {
+                                  const isSelected = selectedRoomIds.has(r.salle_id!);
+                                  const seriesNames = r.serie_ids.map(sid => series.find(s => s.id === sid)?.nom).filter(Boolean).join(", ");
+                                  const candidateCount = r.candidats.length;
+                                  return (
+                                  <div key={`cr-${r.uid}`}
+                                    onClick={() => r.salle_id && toggleRoomSelection(r.salle_id)}
+                                    style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
+                                    <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {r.salle_numero}</span>
+                                    <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{seriesNames || "بدون سلاسل"}</div>
+                                    <div style={{ fontSize: 10, color: "#5f6368", marginTop: 2 }}>{candidateCount} مترشح</div>
+                                    {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
+                                  </div>
+                                  );
+                                })}
                                 </div>
-                                );
-                              })}
                               </div>
-                            </div>
-                          ) : null;
+                            );
+                          } else {
+                            const groups: Record<string, DayAssignment[]> = {};
+                            dayAssignments.forEach(a => {
+                              const key = a.heure_debut || "other";
+                              if (!groups[key]) groups[key] = [];
+                              groups[key].push(a);
+                            });
+                            return selectedTimeSlot && groups[selectedTimeSlot] ? (
+                              <div key={selectedTimeSlot} style={{ marginBottom: 12 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                                {groups[selectedTimeSlot].map((a) => {
+                                  const isSelected = selectedRoomIds.has(a.salle_id);
+                                  return (
+                                  <div key={`${a.salle_id}-${a.serie_id}-${a.examen_id}`}
+                                    onClick={() => toggleRoomSelection(a.salle_id)}
+                                    style={{ background: isSelected ? "#e8f0fe" : "#fff", borderRadius: 12, border: isSelected ? "2px solid #1a56db" : "1px solid #e8eaed", padding: "16px 12px", cursor: "pointer", transition: "all .15s", textAlign: "center", userSelect: "none" }}>
+                                    <span style={{ fontSize: 18, fontWeight: 700, color: "#1e466e" }}>قاعة {a.salle_numero}</span>
+                                    <div style={{ fontSize: 11, color: "#5f6368", marginTop: 4 }}>{a.section_nom} — {a.serie_nom}</div>
+                                    {isSelected && <div style={{ fontSize: 11, color: "#1a56db", fontWeight: 600, marginTop: 4 }}>✓ مختارة</div>}
+                                  </div>
+                                  );
+                                })}
+                                </div>
+                              </div>
+                            ) : null;
+                          }
                         })()}
                         <p style={{ fontSize: 12, color: "#5f6368", margin: "4px 0 0" }}>
                           {selectedCount > 0 ? `✓ ${selectedCount} قاعة محددة` : "اختر القاعات لإنشاء الوثائق"}
@@ -781,7 +956,7 @@ export default function DocumentsPage() {
               <div style={{ width: 56, height: 56, borderRadius: 16, background: "#e8f0fe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto 12px" }}>✅</div>
               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#202124", margin: "0 0 4px" }}>وثائقك جاهزة للتحميل</h3>
               <p style={{ fontSize: 13, color: "#5f6368", margin: 0 }}>
-                 {docs.length + presenceDocs.length + verifDocs.length} وثائق جاهزة
+                 {docs.length + presenceDocs.length + verifDocs.length + recDocs.length} وثائق جاهزة
               </p>
             </div>
             {dlError && (
@@ -789,9 +964,9 @@ export default function DocumentsPage() {
                 {dlError}
               </div>
             )}
-            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0) ? (
+            {(docs.length > 0 || presenceDocs.length > 0 || verifDocs.length > 0 || recDocs.length > 0) ? (
               (() => {
-                const allDocs = [...docs, ...presenceDocs, ...verifDocs];
+                const allDocs = [...docs, ...presenceDocs, ...verifDocs, ...recDocs];
                 const grouped: Record<string, typeof allDocs> = {};
                 for (const d of allDocs) {
                   if (!grouped[d.type]) grouped[d.type] = [];
@@ -805,6 +980,7 @@ export default function DocumentsPage() {
                   presence: { icon: "📋", label: "بطاقات الحضور",     bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   door:     { icon: "📋", label: "سجل القاعة",        bg: "#e8f0fe", border: "#c7d7f9", btn: "#0f6e56" },
                   verif:    { icon: "📋", label: "بطاقات التثبت",     bg: "#fef3c7", border: "#fde68a", btn: "#92400e" },
+                  rec:      { icon: "📋", label: "قائمة المترشحين",   bg: "#f0fdf4", border: "#bbf7d0", btn: "#0f6e56" },
                 };
                 return Object.entries(grouped).map(([type, docs]) => {
                   const info = typeInfo[type] || { icon: "📄", label: type, bg: "#f8f9fa", border: "#e8eaed", btn: "#5f6368" };
@@ -830,11 +1006,11 @@ export default function DocumentsPage() {
               })()
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={downloadAllPdf} disabled={docs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
+              <button onClick={downloadAllPdf} disabled={docs.length === 0 && recDocs.length === 0} style={{ ...c.btn("#b45309"), flex: 1, justifyContent: "center" }}>
                 <Download size={15} /> PDF تحميل الكل
               </button>
               <button onClick={downloadAll} style={{ ...c.btn("#1e466e"), flex: 1, justifyContent: "center" }}>
-                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length})
+                <Download size={15} /> تحميل الكل ({docs.length + presenceDocs.length + verifDocs.length + recDocs.length})
               </button>
               <button onClick={() => setShowModal(false)} style={{ ...c.btn("#f1f3f4", "#374151"), flex: 1, justifyContent: "center" }}>
                 إغلاق
